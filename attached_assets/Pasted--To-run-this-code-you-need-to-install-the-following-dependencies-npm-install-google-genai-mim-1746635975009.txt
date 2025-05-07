@@ -1,0 +1,424 @@
+// To run this code you need to install the following dependencies:
+// npm install @google/genai mime
+// npm install -D @types/node
+
+import {
+  GoogleGenAI,
+  Type,
+} from '@google/genai';
+
+async function main() {
+  const ai = new GoogleGenAI({
+    apiKey: process.env.GEMINI_API_KEY,
+  });
+  const config = {
+    responseMimeType: 'application/json',
+    responseSchema: {
+      type: Type.OBJECT,
+      required: ["title", "readingLevel", "pages"],
+      properties: {
+        title: {
+          type: Type.STRING,
+          description: "Story title",
+        },
+        readingLevel: {
+          type: Type.STRING,
+          description: "Lexile band, Fry list bucket, or other level tag",
+        },
+        pages: {
+          type: Type.ARRAY,
+          description: "Ordered list of pages",
+          items: {
+            type: Type.OBJECT,
+            required: ["pageNumber", "words", "imagePrompt"],
+            properties: {
+              pageNumber: {
+                type: Type.INTEGER,
+              },
+              words: {
+                type: Type.ARRAY,
+                description: "The sentence split so every word is its own object with phoneme data",
+                items: {
+                  type: Type.OBJECT,
+                  required: ["text", "phonemes"],
+                  properties: {
+                    text: {
+                      type: Type.STRING,
+                      description: "Exact surface form of the word",
+                    },
+                    phonemes: {
+                      type: Type.ARRAY,
+                      description: "Ordered phoneme sequence for this word (ARPABET, IPA, or your preferred key)",
+                      items: {
+                        type: Type.STRING,
+                      },
+                    },
+                  },
+                },
+              },
+              imagePrompt: {
+                type: Type.STRING,
+                description: "Rich, camera‑and‑lighting‑aware prompt to feed Flux‑Schnell for the illustration",
+              },
+            },
+          },
+        },
+      },
+    },
+    systemInstruction: [
+        {
+          text: `Here’s a concise, powerful prompt designed for Gemini to generate a leveled children’s story with per-word phoneme breakdowns and image prompts, formatted according to the schema:
+
+⸻
+
+Prompt 
+
+storybook.structured.v2
+
+Please generate a children's story based on the constraints:
+Ensure word and phoneme accuracy. Do not summarize. Do not explain. Output only valid JSON.`,
+        }
+    ],
+  };
+  const model = 'gemini-2.5-pro-preview-05-06';
+  const contents = [
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `Generate a storybook titled {"Space Pirates Adventure"} at readingLevel {{ "Fry-2" with 8 pages.  
+Each page must include:
+- pageNumber (1–8)
+- words: an array of objects { text: string, phonemes: [string,…] }
+- imagePrompt: a rich prompt for the illustration  
+
+Output ONLY the JSON object.`,
+        },
+      ],
+    },
+    {
+      role: 'model',
+      parts: [
+        {
+          text: `The user wants a children's story in JSON format.
+The story needs to be titled "Space Pirates Adventure".
+The reading level should be "Fry-2".
+It needs to have 8 pages.
+Each page object must contain:
+- \`pageNumber\`: integer from 1 to 8.
+- \`words\`: an array of objects, where each object has:
+    - \`text\`: the word string.
+    - \`phonemes\`: an array of strings representing ARPABET phonemes for the word.
+- \`imagePrompt\`: a string for an image generation model.
+
+I will create a simple story about space pirates. For each page, I will:
+1.  Write a short sentence or two appropriate for "Fry-2" reading level.
+2.  Break down each word in the sentence into its constituent phonemes (ARPABET).
+3.  Create a descriptive image prompt for the page's illustration.
+
+Let's plan the story page by page:
+Page 1: Introduce the space pirates and their ship.
+Page 2: They spot a treasure planet.
+Page 3: They land on the planet.
+Page 4: They start searching for treasure.
+Page 5: They find a mysterious map.
+Page 6: The map leads them to a cave.
+Page 7: Inside the cave, they find sparkling gems.
+Page 8: They celebrate their find and fly off.
+
+I need to be careful with phoneme accuracy. I'll use common ARPABET representations.
+
+Let's start generating page by page.
+
+**Page 1:**
+Sentence: "Zip and Zap are space pirates."
+Words:
+- Zip: Z IH P
+- and: AE N D (or AH N D, often reduced) -> Using AE N D for clarity at this level.
+- Zap: Z AE P
+- are: AA R
+- space: S P EY S
+- pirates: P AY R AH T S (or P AY R IH T S) -> P AY R AH T S sounds more common for children.
+
+Image Prompt: "A whimsical cartoon spaceship, shaped like a classic pirate ship with solar sails, floats in a starry purple cosmos. Two friendly, cartoon alien space pirates, Zip (small, green, one eye) and Zap (tall, blue, three eyes), wave from the deck. Nebulae and distant planets in the background."
+
+**Page 2:**
+Sentence: "They see a bright star map."
+Words:
+- They: DH EY
+- see: S IY
+- a: AH (unstressed) or EY (stressed) -> AH
+- bright: B R AY T
+- star: S T AA R
+- map: M AE P
+
+Image Prompt: "Interior of the cartoon spaceship cockpit. Zip points excitedly at a holographic star map glowing in front of them. The map shows a route to a highlighted, treasure-chest-shaped planet. Zap looks on with a spyglass."
+
+**Page 3:**
+Sentence: "Their ship lands on a red rock."
+Words:
+- Their: DH EH R (or DH EY R) -> DH EH R
+- ship: SH IH P
+- lands: L AE N D Z
+- on: AA N (or AO N) -> AA N
+- a: AH
+- red: R EH D
+- rock: R AA K
+
+Image Prompt: "The cartoon pirate spaceship landed on a vibrant red, rocky planet surface with strange, glowing plants. Zip and Zap, wearing space helmets, are stepping out onto a ramp. Craters and purple sky in the background."
+
+**Page 4:**
+Sentence: "Zip looks for gold."
+Words:
+- Zip: Z IH P
+- looks: L UH K S
+- for: F AO R (or F ER, unstressed) -> F AO R
+- gold: G OW L D
+
+Image Prompt: "Zip, the small green alien pirate, peers through a large magnifying glass at the red rocky ground, searching for treasure. Funny alien critters peek from behind rocks. Zap is in the background, scanning the horizon."
+
+**Page 5:**
+Sentence: "Zap finds a secret chest."
+Words:
+- Zap: Z AE P
+- finds: F AY N D Z
+- a: AH
+- secret: S IY K R IH T (or S IY K R EH T) -> S IY K R IH T
+- chest: CH EH S T
+
+Image Prompt: "Zap, the tall blue alien pirate, triumphantly holds up an old, dusty, glowing treasure chest he has just dug up from the red soil. The chest has mysterious symbols on it. Zip looks on amazed."
+
+**Page 6:**
+Sentence: "In the chest is a new map."
+Words:
+- In: IH N
+- the: DH AH (unstressed) or DH IY (before vowel) -> DH AH
+- chest: CH EH S T
+- is: IH Z
+- a: AH
+- new: N UW (or N Y UW) -> N UW
+- map: M AE P
+
+Image Prompt: "Close-up of the open treasure chest. Inside, instead of gold, there's a glowing, rolled-up scroll or a high-tech map device. Zip and Zap lean over, looking intrigued. The map projects a faint beam of light upwards."
+
+**Page 7:**
+Sentence: "The map shows a big, dark cave."
+Words:
+- The: DH AH
+- map: M AE P
+- shows: SH OW Z
+- a: AH
+- big: B IH G
+- dark: D AA R K
+- cave: K EY V
+
+Image Prompt: "Zip and Zap stand before the entrance of a large, mysterious cave on the red planet. The glowing map they found is pointing towards the cave entrance. Strange glowing crystals are visible just inside the dark opening."
+
+**Page 8:**
+Sentence: "They find gems and fly away."
+Words:
+- They: DH EY
+- find: F AY N D
+- gems: JH EH M Z
+- and: AE N D
+- fly: F L AY
+- away: AH W EY
+
+Image Prompt: "Zip and Zap are back in their spaceship, which is blasting off from the red planet. They are joyfully looking at a pile of sparkling, colorful gems on the ship's console. Stars and nebulae in the background as they fly away."
+
+Double check phonemes:
+Page 1:
+- Zip: Z IH P (Correct)
+- and: AE N D (Correct)
+- Zap: Z AE P (Correct)
+- are: AA R (Correct)
+- space: S P EY S (Correct)
+- pirates: P AY R AH T S (Correct)
+
+Page 2:
+- They: DH EY (Correct)
+- see: S IY (Correct)
+- a: AH (Correct)
+- bright: B R AY T (Correct)
+- star: S T AA R (Correct)
+- map: M AE P (Correct)
+
+Page 3:
+- Their: DH EH R (Correct)
+- ship: SH IH P (Correct)
+- lands: L AE N D Z (Correct)
+- on: AA N (Correct)
+- a: AH (Correct)
+- red: R EH D (Correct)
+- rock: R AA K (Correct)
+
+Page 4:
+- Zip: Z IH P (Correct)
+- looks: L UH K S (Correct)
+- for: F AO R (Correct)
+- gold: G OW L D (Correct)
+
+Page 5:
+- Zap: Z AE P (Correct)
+- finds: F AY N D Z (Correct)
+- a: AH (Correct)
+- secret: S IY K R IH T (Correct)
+- chest: CH EH S T (Correct)
+
+Page 6:
+- In: IH N (Correct)
+- the: DH AH (Correct)
+- chest: CH EH S T (Correct)
+- is: IH Z (Correct)
+- a: AH (Correct)
+- new: N UW (Correct)
+- map: M AE P (Correct)
+
+Page 7:
+- The: DH AH (Correct)
+- map: M AE P (Correct)
+- shows: SH OW Z (Correct)
+- a: AH (Correct)
+- big: B IH G (Correct)
+- dark: D AA R K (Correct)
+- cave: K EY V (Correct)
+
+Page 8:
+- They: DH EY (Correct)
+- find: F AY N D (Correct)
+- gems: JH EH M Z (Correct)
+- and: AE N D (Correct)
+- fly: F L AY (Correct)
+- away: AH W EY (Correct)
+
+All phonemes seem reasonable for ARPABET. The story is simple and fits Fry-2 level. Image prompts are descriptive.
+The structure seems to align with the provided schema.
+I will now assemble the final JSON.`,
+        },
+        {
+          text: `{
+  "pages": [
+    {
+      "imagePrompt": "A whimsical cartoon spaceship, shaped like a classic pirate ship with solar sails, floats in a starry purple cosmos. Two friendly, cartoon alien space pirates, Zip (small, green, one eye) and Zap (tall, blue, three eyes), wave from the deck. Nebulae and distant planets in the background.",
+      "pageNumber": 1,
+      "words": [
+        {"phonemes": ["Z", "IH", "P"], "text": "Zip"},
+        {"phonemes": ["AE", "N", "D"], "text": "and"},
+        {"phonemes": ["Z", "AE", "P"], "text": "Zap"},
+        {"phonemes": ["AA", "R"], "text": "are"},
+        {"phonemes": ["S", "P", "EY", "S"], "text": "space"},
+        {"phonemes": ["P", "AY", "R", "AH", "T", "S"], "text": "pirates."}
+      ]
+    },
+    {
+      "imagePrompt": "Interior of the cartoon spaceship cockpit. Zip points excitedly at a holographic star map glowing in front of them. The map shows a route to a highlighted, treasure-chest-shaped planet. Zap looks on with a spyglass.",
+      "pageNumber": 2,
+      "words": [
+        {"phonemes": ["DH", "EY"], "text": "They"},
+        {"phonemes": ["S", "IY"], "text": "see"},
+        {"phonemes": ["AH"], "text": "a"},
+        {"phonemes": ["B", "R", "AY", "T"], "text": "bright"},
+        {"phonemes": ["S", "T", "AA", "R"], "text": "star"},
+        {"phonemes": ["M", "AE", "P"], "text": "map."}
+      ]
+    },
+    {
+      "imagePrompt": "The cartoon pirate spaceship landed on a vibrant red, rocky planet surface with strange, glowing plants. Zip and Zap, wearing space helmets, are stepping out onto a ramp. Craters and purple sky in the background.",
+      "pageNumber": 3,
+      "words": [
+        {"phonemes": ["DH", "EH", "R"], "text": "Their"},
+        {"phonemes": ["SH", "IH", "P"], "text": "ship"},
+        {"phonemes": ["L", "AE", "N", "D", "Z"], "text": "lands"},
+        {"phonemes": ["AA", "N"], "text": "on"},
+        {"phonemes": ["AH"], "text": "a"},
+        {"phonemes": ["R", "EH", "D"], "text": "red"},
+        {"phonemes": ["R", "AA", "K"], "text": "rock."}
+      ]
+    },
+    {
+      "imagePrompt": "Zip, the small green alien pirate, peers through a large magnifying glass at the red rocky ground, searching for treasure. Funny alien critters peek from behind rocks. Zap is in the background, scanning the horizon.",
+      "pageNumber": 4,
+      "words": [
+        {"phonemes": ["Z", "IH", "P"], "text": "Zip"},
+        {"phonemes": ["L", "UH", "K", "S"], "text": "looks"},
+        {"phonemes": ["F", "AO", "R"], "text": "for"},
+        {"phonemes": ["G", "OW", "L", "D"], "text": "gold."}
+      ]
+    },
+    {
+      "imagePrompt": "Zap, the tall blue alien pirate, triumphantly holds up an old, dusty, glowing treasure chest he has just dug up from the red soil. The chest has mysterious symbols on it. Zip looks on amazed.",
+      "pageNumber": 5,
+      "words": [
+        {"phonemes": ["Z", "AE", "P"], "text": "Zap"},
+        {"phonemes": ["F", "AY", "N", "D", "Z"], "text": "finds"},
+        {"phonemes": ["AH"], "text": "a"},
+        {"phonemes": ["S", "IY", "K", "R", "IH", "T"], "text": "secret"},
+        {"phonemes": ["CH", "EH", "S", "T"], "text": "chest."}
+      ]
+    },
+    {
+      "imagePrompt": "Close-up of the open treasure chest. Inside, instead of gold, there's a glowing, rolled-up scroll or a high-tech map device. Zip and Zap lean over, looking intrigued. The map projects a faint beam of light upwards.",
+      "pageNumber": 6,
+      "words": [
+        {"phonemes": ["IH", "N"], "text": "In"},
+        {"phonemes": ["DH", "AH"], "text": "the"},
+        {"phonemes": ["CH", "EH", "S", "T"], "text": "chest"},
+        {"phonemes": ["IH", "Z"], "text": "is"},
+        {"phonemes": ["AH"], "text": "a"},
+        {"phonemes": ["N", "UW"], "text": "new"},
+        {"phonemes": ["M", "AE", "P"], "text": "map."}
+      ]
+    },
+    {
+      "imagePrompt": "Zip and Zap stand before the entrance of a large, mysterious cave on the red planet. The glowing map they found is pointing towards the cave entrance. Strange glowing crystals are visible just inside the dark opening.",
+      "pageNumber": 7,
+      "words": [
+        {"phonemes": ["DH", "AH"], "text": "The"},
+        {"phonemes": ["M", "AE", "P"], "text": "map"},
+        {"phonemes": ["SH", "OW", "Z"], "text": "shows"},
+        {"phonemes": ["AH"], "text": "a"},
+        {"phonemes": ["B", "IH", "G"], "text": "big,"},
+        {"phonemes": ["D", "AA", "R", "K"], "text": "dark"},
+        {"phonemes": ["K", "EY", "V"], "text": "cave."}
+      ]
+    },
+    {
+      "imagePrompt": "Zip and Zap are back in their spaceship, which is blasting off from the red planet. They are joyfully looking at a pile of sparkling, colorful gems on the ship's console. Stars and nebulae in the background as they fly away.",
+      "pageNumber": 8,
+      "words": [
+        {"phonemes": ["DH", "EY"], "text": "They"},
+        {"phonemes": ["F", "AY", "N", "D"], "text": "find"},
+        {"phonemes": ["JH", "EH", "M", "Z"], "text": "gems"},
+        {"phonemes": ["AE", "N", "D"], "text": "and"},
+        {"phonemes": ["F", "L", "AY"], "text": "fly"},
+        {"phonemes": ["AH", "W", "EY"], "text": "away."}
+      ]
+    }
+  ],
+  "readingLevel": "Fry-2",
+  "title": "Space Pirates Adventure"
+}`,
+        },
+      ],
+    },
+    {
+      role: 'user',
+      parts: [
+        {
+          text: `INSERT_INPUT_HERE`,
+        },
+      ],
+    },
+  ];
+
+  const response = await ai.models.generateContentStream({
+    model,
+    config,
+    contents,
+  });
+  for await (const chunk of response) {
+    console.log(chunk.text);
+  }
+}
+
+main();

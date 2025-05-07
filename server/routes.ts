@@ -78,8 +78,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create book in database
       const book = await storage.createBook({
-        title: bookContent.title,
-        readingLevel: bookContent.readingLevel,
+        title: bookContent.title || `${theme} Story`,
+        readingLevel: bookContent.readingLevel || readingLevel,
         theme: theme,
         userId: 1 // Default user for now
       });
@@ -92,15 +92,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
             prompt: page.imagePrompt
           });
 
-          // Save page with image URL
+          // Process page data to extract text, fryWords, and phonemes
+          const text = page.words?.map(word => word.text).join(' ') || '';
+          
+          // Get unique phonemes from all words
+          const phonemes = Array.from(
+            new Set(
+              page.words?.flatMap(word => word.phonemes) || []
+            )
+          );
+          
+          // Identify Fry words (simplified approach - could be enhanced)
+          // We'll consider words with 4 or fewer letters as potential Fry words
+          const fryWords = page.words
+            ?.filter(word => {
+              const cleanWord = word.text.replace(/[.,!?;:"']/g, '');
+              return cleanWord.length <= 4;
+            })
+            .map(word => word.text.replace(/[.,!?;:"']/g, '')) || [];
+
+          // Save page with image URL and calculated fields
           return storage.createBookPage({
             bookId: book.id,
             pageNumber: page.pageNumber,
-            text: page.text,
+            words: page.words,
+            text: text,
             imagePrompt: page.imagePrompt,
             imageUrl: imageResponse.imageUrl,
-            fryWords: page.fryWords,
-            phonemes: page.phonemes
+            fryWords: fryWords,
+            phonemes: phonemes
           });
         })
       );

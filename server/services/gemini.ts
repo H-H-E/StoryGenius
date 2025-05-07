@@ -1,14 +1,16 @@
 import { ReadingAssessment } from "@/types";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 interface StoryBookSchema {
   title: string;
   readingLevel: string;
   pages: Array<{
     pageNumber: number;
-    text: string;
+    words: Array<{
+      text: string;
+      phonemes: string[];
+    }>;
     imagePrompt: string;
-    fryWords: string[];
-    phonemes: string[];
   }>;
 }
 
@@ -39,66 +41,126 @@ export async function callGemini(data: any, type: string = "storybook"): Promise
     throw new Error("GEMINI_API_KEY environment variable is not set");
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+  const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-  let prompt;
-  let schema;
-
+  // Different configurations based on request type
   if (type === "storybook") {
-    prompt = `storybook.v1\n${JSON.stringify(data)}`;
-    schema = "StoryBookSchema";
-  } else if (type === "assessment") {
-    prompt = `assessment.v1\n${JSON.stringify(data)}`;
-    schema = "ReadingAssessmentSchema";
-  } else {
-    throw new Error(`Invalid generation type: ${type}`);
-  }
-
-  const requestBody = {
-    contents: [
-      {
-        role: "user",
-        parts: [{ text: prompt }]
-      }
-    ],
-    generationConfig: {
-      response_format: {
-        type: "json_schema",
-        schema: schema
-      }
-    }
-  };
-
-  try {
-    const response = await fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
+    // Generate a storybook with structured output
+    const model = ai.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 8000,
       },
-      body: JSON.stringify(requestBody)
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Gemini API error (${response.status}): ${errorText}`);
-    }
+    const prompt = `Generate a storybook titled "${data.theme}" at readingLevel "${data.reading_level}" with ${data.num_pages} pages.
+Each page must include:
+- pageNumber (1–${data.num_pages})
+- words: an array of objects { text: string, phonemes: [string,…] }
+- imagePrompt: a rich prompt for the illustration
 
-    const data = await response.json();
-    
-    // Extract the generated content
-    const generatedText = data.candidates[0].content.parts[0].text;
-    
-    // Parse the JSON string from the response
+Make sure the complexity matches the reading level. Break down each word into correct phonemes in ARPABET format.
+The story should be related to the theme: ${data.theme}.
+
+Output ONLY valid JSON.`;
+
     try {
-      const parsedResponse = JSON.parse(generatedText);
-      return parsedResponse;
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+
+      const responseText = result.response.text();
+      
+      // Look for JSON content - it may be embedded in markdown code blocks or directly returned
+      let jsonText = responseText;
+      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                        responseText.match(/```\n([\s\S]*?)\n```/) ||
+                        responseText.match(/{[\s\S]*}/);
+                        
+      if (jsonMatch) {
+        jsonText = jsonMatch[1] || jsonMatch[0];
+      }
+      
+      try {
+        return JSON.parse(jsonText);
+      } catch (parseError) {
+        console.error("Failed to parse JSON response:", parseError);
+        throw new Error("Failed to parse storybook JSON response");
+      }
     } catch (error) {
-      console.error("Failed to parse Gemini response:", error);
-      throw new Error("Failed to parse Gemini response");
+      console.error("Error generating storybook:", error);
+      throw error;
     }
-  } catch (error) {
-    console.error("Error calling Gemini API:", error);
-    throw error;
+  } else if (type === "assessment") {
+    // Generate a reading assessment with structured output
+    const model = ai.getGenerativeModel({
+      model: 'gemini-1.5-pro',
+      generationConfig: {
+        temperature: 0.2,
+        maxOutputTokens: 4000,
+      },
+    });
+
+    const prompt = `Analyze a child's reading accuracy.
+Expected Text: "${data.expected}"
+Actual Reading: "${data.actual}"
+
+Provide a detailed analysis with:
+1. Word-by-word comparison
+2. Phoneme breakdown for each word
+3. Identify correct/incorrect pronunciations
+4. Calculate accuracy percentages
+
+Format as JSON with:
+{
+  "sentence": "original sentence",
+  "analysis": [
+    {
+      "word": "word from text",
+      "phonemeBreakdown": [
+        {"phoneme": "phoneme", "hit": boolean}
+      ],
+      "correct": boolean
+    }
+  ],
+  "scores": {
+    "accuracyPct": number (0-100),
+    "fryHitPct": number (0-100),
+    "phonemeHitPct": number (0-100)
+  }
+}
+
+Output ONLY valid JSON.`;
+
+    try {
+      const result = await model.generateContent({
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+
+      const responseText = result.response.text();
+      
+      // Look for JSON content - it may be embedded in markdown code blocks or directly returned
+      let jsonText = responseText;
+      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
+                        responseText.match(/```\n([\s\S]*?)\n```/) ||
+                        responseText.match(/{[\s\S]*}/);
+                        
+      if (jsonMatch) {
+        jsonText = jsonMatch[1] || jsonMatch[0];
+      }
+      
+      try {
+        return JSON.parse(jsonText);
+      } catch (parseError) {
+        console.error("Failed to parse JSON response:", parseError);
+        throw new Error("Failed to parse assessment JSON response");
+      }
+    } catch (error) {
+      console.error("Error generating assessment:", error);
+      throw error;
+    }
+  } else {
+    throw new Error(`Invalid generation type: ${type}`);
   }
 }

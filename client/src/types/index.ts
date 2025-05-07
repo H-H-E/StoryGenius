@@ -1,11 +1,19 @@
 // Book and page related types
+export interface WordWithPhonemes {
+  text: string;
+  phonemes: string[];
+}
+
 export interface BookPage {
   pageNumber: number;
-  text: string;
+  words: WordWithPhonemes[];
   imagePrompt: string;
   imageUrl?: string;
-  fryWords: string[];
-  phonemes: string[];
+  
+  // Calculated fields
+  text?: string;
+  fryWords?: string[];
+  phonemes?: string[];
 }
 
 export interface Book {
