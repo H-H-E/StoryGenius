@@ -6,7 +6,7 @@ import ReadAlong from "@/components/ReadAlong";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Book } from "@/types";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, BookOpen } from "lucide-react";
 
 export default function BookReader() {
   const [, params] = useRoute("/book/:id");
@@ -49,15 +49,19 @@ export default function BookReader() {
     };
   }, [currentPageIndex]);
 
+  // Start reading handler for the BookPage component
+  const handleStartReading = () => {
+    setIsReading(true);
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-blue-50 py-8">
+      <div className="min-h-screen bg-neutral-50 py-8">
         <div className="container mx-auto px-4">
           <div className="max-w-5xl mx-auto">
-            <div className="bg-white rounded-3xl shadow-lg overflow-hidden">
-              <div className="bg-gradient-to-r from-blue-400 to-purple-400 p-4">
-                <Skeleton className="h-10 w-48 bg-white/30" />
-                <Skeleton className="h-5 w-32 mt-2 bg-white/30" />
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="p-4 border-b border-neutral-100">
+                <Skeleton className="h-6 w-48" />
               </div>
               <div className="p-8 flex flex-col items-center">
                 <Skeleton className="h-80 w-full max-w-lg rounded-xl" />
@@ -73,12 +77,12 @@ export default function BookReader() {
 
   if (!book) {
     return (
-      <div className="min-h-screen bg-blue-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-2xl shadow-md text-center max-w-md">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-xl shadow-md text-center max-w-md">
           <h2 className="font-display font-bold text-2xl text-red-600 mb-4">Book not found</h2>
           <p className="mb-6">The storybook you're looking for could not be found.</p>
           <Link href="/">
-            <Button>Back to Home</Button>
+            <Button>Back to Library</Button>
           </Link>
         </div>
       </div>
@@ -88,113 +92,93 @@ export default function BookReader() {
   const currentPage = book.pages[currentPageIndex];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-purple-50 pb-12">
-      {/* Top navigation bar */}
-      <div className="bg-white shadow-sm border-b border-neutral-200 py-2 mb-8">
+    <div className="min-h-screen bg-neutral-50">
+      {/* Top navigation bar - simplified */}
+      <div className="bg-white shadow-sm border-b border-neutral-100 py-3">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center">
-            <Link href="/" className="text-neutral-800 hover:text-primary-600 flex items-center">
+            <Link href="/" className="text-neutral-700 hover:text-primary-600 flex items-center">
               <ChevronLeft className="h-5 w-5 mr-1" />
-              <span>Back to Library</span>
+              <span>Library</span>
             </Link>
-            <h1 className="font-display font-bold text-lg">{book.title}</h1>
-            <div className="text-sm text-neutral-500">Level: {book.readingLevel}</div>
+            
+            <div className="flex items-center">
+              <BookOpen className="h-5 w-5 text-primary-500 mr-2" />
+              <h1 className="font-display font-medium text-lg text-neutral-800">{book.title}</h1>
+              <div className="ml-3 px-2 py-0.5 bg-neutral-100 rounded text-xs font-medium text-neutral-600">
+                Level: {book.readingLevel}
+              </div>
+            </div>
+            
+            <div className="text-sm text-neutral-500">
+              Page {currentPage.pageNumber} of {book.pages.length}
+            </div>
           </div>
         </div>
       </div>
       
-      <div className="container mx-auto px-4">
-        <div className="max-w-6xl mx-auto">
-          {/* Book content */}
-          <div className="bg-white rounded-3xl shadow-lg overflow-hidden border-4 border-primary-200 relative">
-            {/* Page navigation controls - for small screens */}
-            <div className="flex items-center justify-between md:hidden p-4 bg-gradient-to-r from-primary-100 to-primary-50">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToPreviousPage}
-                disabled={currentPageIndex === 0}
-                className="flex items-center"
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                <span>Previous</span>
-              </Button>
-              
-              <span className="text-sm font-medium">
-                Page {currentPage.pageNumber} of {book.pages.length}
-              </span>
-              
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToNextPage}
-                disabled={currentPageIndex === book.pages.length - 1}
-                className="flex items-center"
-              >
-                <span>Next</span>
-                <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
-            </div>
-            
-            {/* Main content area */}
-            <div className="relative">
-              {/* Previous page button - desktop */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute left-0 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white shadow-lg rounded-full h-12 w-12 z-10 hidden md:flex items-center justify-center"
-                onClick={goToPreviousPage}
-                disabled={currentPageIndex === 0}
-              >
-                <ChevronLeft className="h-6 w-6" />
-              </Button>
-              
-              {/* Book content layout */}
-              <div className="flex flex-col md:flex-row">
-                <BookPage 
-                  page={currentPage} 
-                  isReading={isReading}
-                />
-                
-                <ReadAlong
-                  bookId={bookId}
-                  page={currentPage}
-                  isReading={isReading}
-                  setIsReading={setIsReading}
-                />
-              </div>
-              
-              {/* Next page button - desktop */}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white shadow-lg rounded-full h-12 w-12 z-10 hidden md:flex items-center justify-center"
-                onClick={goToNextPage}
-                disabled={currentPageIndex === book.pages.length - 1}
-              >
-                <ChevronRight className="h-6 w-6" />
-              </Button>
-            </div>
-            
-            {/* Page dots */}
-            <div className="px-4 py-3 bg-neutral-50 border-t border-neutral-200 flex justify-center">
-              <div className="flex space-x-1">
-                {book.pages.map((_, index) => (
-                  <button
-                    key={index}
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      index === currentPageIndex ? 'bg-primary-600' : 'bg-neutral-300 hover:bg-neutral-400'
-                    }`}
-                    onClick={() => {
-                      setCurrentPageIndex(index);
-                      setIsReading(false);
-                    }}
-                    aria-label={`Go to page ${index + 1}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
+      {/* Main content area */}
+      <main className="container mx-auto px-4 py-6 relative">
+        {/* Navigation arrows */}
+        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-20">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 rounded-full shadow-lg bg-white disabled:opacity-30"
+            onClick={goToPreviousPage}
+            disabled={currentPageIndex === 0}
+          >
+            <ChevronLeft className="h-6 w-6" />
+          </Button>
+        </div>
+        
+        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 z-20">
+          <Button
+            variant="outline"
+            size="icon"
+            className="h-12 w-12 rounded-full shadow-lg bg-white disabled:opacity-30"
+            onClick={goToNextPage}
+            disabled={currentPageIndex === book.pages.length - 1}
+          >
+            <ChevronRight className="h-6 w-6" />
+          </Button>
+        </div>
+        
+        {/* Book content with neoskeuomorphic design */}
+        <BookPage 
+          page={currentPage} 
+          isReading={isReading}
+          onStartReading={handleStartReading}
+        />
+        
+        {/* Read-along panel that slides up from bottom */}
+        <ReadAlong
+          bookId={bookId}
+          page={currentPage}
+          isReading={isReading}
+          setIsReading={setIsReading}
+        />
+      </main>
+      
+      {/* Page navigation dots */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-100 py-2 flex justify-center z-10"
+           style={{ transform: isReading ? 'translateY(100%)' : 'translateY(0)', transition: 'transform 0.3s ease' }}>
+        <div className="flex space-x-1 px-3 py-1 bg-neutral-50 rounded-full shadow-inner">
+          {book.pages.map((_, index) => (
+            <button
+              key={index}
+              className={`h-2.5 w-2.5 rounded-full transition-all ${
+                index === currentPageIndex 
+                  ? 'bg-primary-600 scale-125' 
+                  : 'bg-neutral-300 hover:bg-neutral-400'
+              }`}
+              onClick={() => {
+                setCurrentPageIndex(index);
+                setIsReading(false);
+              }}
+              aria-label={`Go to page ${index + 1}`}
+            />
+          ))}
         </div>
       </div>
     </div>

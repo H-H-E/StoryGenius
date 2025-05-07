@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { BookPage, ReadingEvent, ReadingAssessment } from "@/types";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { Mic, Square } from "lucide-react";
+import { Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { highlightWord } from "@/lib/word-highlighting";
@@ -20,6 +20,9 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   const [currentText, setCurrentText] = useState("");
   const audioVisRef = useRef<HTMLDivElement>(null);
   const [confidenceLevel, setConfidenceLevel] = useState(0);
+  const [silenceTimer, setSilenceTimer] = useState<NodeJS.Timeout | null>(null);
+  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(null);
+  const [autoStopEnabled, setAutoStopEnabled] = useState(true);
   
   // Extract words either from the words array or fall back to text, with safety checks
   const words = page?.words?.length ? 
@@ -36,10 +39,11 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     lastWordDetected,
     confidence,
     isListening,
-    isSpeechRecognitionSupported 
+    isSpeechRecognitionSupported,
+    resetTranscript 
   } = useSpeechRecognition();
 
-  // Create audio visualization
+  // Animation for audio visualization
   useEffect(() => {
     if (!audioVisRef.current || !isReading) return;
     
@@ -48,11 +52,16 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     container.innerHTML = '';
     
     // Create new bars
-    const barCount = 7;
+    const barCount = 5; // Reduced number of bars for cleaner look
     for (let i = 0; i < barCount; i++) {
       const bar = document.createElement('div');
       bar.className = 'audio-bar';
-      bar.style.height = '5px'; // Start small
+      bar.style.height = '4px'; // Start small
+      bar.style.background = 'currentColor';
+      bar.style.borderRadius = '2px';
+      bar.style.margin = '0 2px';
+      bar.style.width = '3px';
+      bar.style.transition = 'height 0.1s ease';
       container.appendChild(bar);
     }
     
@@ -65,7 +74,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       bars.forEach(bar => {
         // Use confidence to affect height variability - more confidence = taller bars
         const confidenceBoost = confidenceLevel * 15; // Scale up the effect
-        const height = Math.floor(Math.random() * (20 + confidenceBoost)) + 5;
+        const height = Math.floor(Math.random() * (15 + confidenceBoost)) + 4;
         (bar as HTMLElement).style.height = `${height}px`;
       });
       
@@ -78,6 +87,51 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       cancelAnimationFrame(animationFrame);
     };
   }, [isReading, confidenceLevel]);
+
+  // Smart auto-stop detection based on silence/inactivity
+  useEffect(() => {
+    if (isReading && autoStopEnabled) {
+      // Reset timers when new speech is detected
+      if (interimTranscript) {
+        if (silenceTimer) {
+          clearTimeout(silenceTimer);
+          setSilenceTimer(null);
+        }
+        
+        // Set new silence detection timer - will trigger if no new speech for 3 seconds
+        const timer = setTimeout(() => {
+          // Only auto-stop if we have detected enough speech (more than a few words)
+          const words = (transcript || "").split(/\s+/).filter(w => w.trim().length > 0);
+          if (words.length > 3) {
+            console.log("Silence detected - stopping reading session");
+            setIsReading(false);
+          }
+        }, 3000);
+        
+        setSilenceTimer(timer);
+      }
+      
+      // General inactivity timer (15 seconds with no meaningful detection)
+      if (!inactivityTimer) {
+        const timer = setTimeout(() => {
+          console.log("Inactivity timeout - stopping reading session");
+          setIsReading(false);
+        }, 15000);
+        
+        setInactivityTimer(timer);
+      }
+    }
+    
+    // Clean up timers
+    return () => {
+      if (silenceTimer) {
+        clearTimeout(silenceTimer);
+      }
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer);
+      }
+    };
+  }, [isReading, interimTranscript, transcript, autoStopEnabled]);
 
   // Update word highlight based on both transcript and interim transcript
   useEffect(() => {
@@ -160,50 +214,9 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   const toggleReading = async () => {
     try {
       if (isReading) {
-        setIsReading(false);
-        setCurrentWordIndex(-1);
-        
-        if (isSpeechRecognitionSupported) {
-          stopListening();
-          
-          // Submit the reading for assessment - with additional safety checks
-          if (currentText && currentText.trim()) {
-            try {
-              // Ensure we have valid page data
-              const pageNumber = page?.pageNumber || 1;
-              const expectedText = page?.text || words.join(' ') || ""; 
-              
-              if (expectedText.trim()) {
-                await assessReadingMutation.mutateAsync({
-                  bookId,
-                  pageNumber,
-                  expected: expectedText,
-                  actual: currentText
-                });
-              }
-            } catch (assessError) {
-              console.error("Error submitting reading assessment:", assessError);
-              toast({
-                title: "Assessment Error",
-                description: "There was a problem analyzing your reading.",
-                variant: "destructive"
-              });
-            }
-          }
-        }
+        stopReadingSession();
       } else {
-        setCurrentText("");
-        setIsReading(true);
-        
-        if (isSpeechRecognitionSupported) {
-          startListening();
-        } else {
-          toast({
-            title: "Speech Recognition Not Supported",
-            description: "Your browser doesn't support speech recognition. Try Chrome or Edge.",
-            variant: "destructive"
-          });
-        }
+        startReadingSession();
       }
     } catch (error) {
       console.error("Error toggling reading state:", error);
@@ -212,149 +225,183 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       stopListening();
     }
   };
+  
+  const startReadingSession = () => {
+    // Clear any existing text and state
+    setCurrentText("");
+    resetTranscript();
+    setCurrentWordIndex(-1);
+    
+    // Set reading mode and start listening
+    setIsReading(true);
+    
+    if (isSpeechRecognitionSupported) {
+      startListening();
+    } else {
+      toast({
+        title: "Speech Recognition Not Supported",
+        description: "Your browser doesn't support speech recognition. Try Chrome or Edge.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const stopReadingSession = async () => {
+    // Clean up any timers
+    if (silenceTimer) {
+      clearTimeout(silenceTimer);
+      setSilenceTimer(null);
+    }
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer);
+      setInactivityTimer(null);
+    }
+    
+    // Stop reading mode and speech recognition
+    setIsReading(false);
+    setCurrentWordIndex(-1);
+    
+    if (isSpeechRecognitionSupported) {
+      stopListening();
+      
+      // Submit the reading for assessment if we have data
+      if (currentText && currentText.trim()) {
+        try {
+          // Ensure we have valid page data
+          const pageNumber = page?.pageNumber || 1;
+          const expectedText = page?.text || words.join(' ') || ""; 
+          
+          if (expectedText.trim()) {
+            await assessReadingMutation.mutateAsync({
+              bookId,
+              pageNumber,
+              expected: expectedText,
+              actual: currentText
+            });
+          }
+        } catch (assessError) {
+          console.error("Error submitting reading assessment:", assessError);
+          toast({
+            title: "Assessment Error",
+            description: "There was a problem analyzing your reading.",
+            variant: "destructive"
+          });
+        }
+      }
+    }
+  };
 
   return (
-    <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col bg-gradient-to-b from-blue-50 to-purple-50 border-l border-neutral-200">
-      <div className="flex-grow flex flex-col">
-        {/* Reading control panel */}
-        <div className="bg-white rounded-xl shadow-sm p-5 mb-6">
-          <h3 className="font-display font-bold text-lg text-neutral-800 mb-4">Read Along Practice</h3>
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 shadow-lg p-4 z-50 transition-all duration-300"
+      style={{ transform: isReading ? 'translateY(0)' : 'translateY(85%)', maxHeight: '250px' }}>
+      <div className="max-w-4xl mx-auto">
+        {/* Pull tab and controls */}
+        <div className="flex justify-between items-center mb-3">
+          <div className="flex items-center">
+            <div 
+              className="w-10 h-1 bg-neutral-300 rounded-full mx-auto mb-3 cursor-pointer"
+              onClick={() => isReading ? stopReadingSession() : setIsReading(!isReading)}
+            ></div>
+            <h3 className="font-medium text-lg text-neutral-700 ml-2">{isReading ? "Reading Mode Active" : "Read Along"}</h3>
+          </div>
           
-          <div className="flex items-center justify-between gap-4 mb-3">
+          <div className="flex space-x-2">
+            {/* Auto-stop toggle */}
+            <button 
+              className={`p-2 rounded-full ${autoStopEnabled ? 'text-primary-600 bg-primary-50' : 'text-neutral-400'}`}
+              title={autoStopEnabled ? "Auto-stop enabled" : "Auto-stop disabled"}
+              onClick={() => setAutoStopEnabled(!autoStopEnabled)}
+            >
+              {autoStopEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            </button>
+            
+            {/* Main reading control button */}
             <Button
               variant={isReading ? "destructive" : "default"}
               onClick={toggleReading}
-              className={`flex-1 flex items-center justify-center py-6 ${isReading ? 'animate-pulse' : ''}`}
+              className={`h-10 ${isReading ? '' : ''}`}
               disabled={assessReadingMutation.isPending}
-              size="lg"
+              size="sm"
             >
               {isReading ? (
                 <>
-                  <Square className="mr-2 h-5 w-5" />
-                  <span className="font-medium">Stop Reading</span>
+                  <Square className="mr-2 h-4 w-4" />
+                  <span>Stop</span>
                 </>
               ) : (
                 <>
-                  <Mic className="mr-2 h-5 w-5" />
-                  <span className="font-medium">Start Reading</span>
+                  <Mic className="mr-2 h-4 w-4" />
+                  <span>Start Reading</span>
                 </>
               )}
             </Button>
-            
-            {isReading && (
+          </div>
+        </div>
+        
+        {/* Reading interface */}
+        <div className="flex space-x-4">
+          {/* Audio visualization */}
+          {isReading && (
+            <div className="audio-wave-container bg-white border border-neutral-100 rounded-lg p-3 h-12 min-w-[60px] flex items-center justify-center">
               <div 
                 ref={audioVisRef} 
-                className="audio-wave bg-primary-50 px-3 py-2 rounded-lg h-12 w-20"
+                className="audio-wave flex items-end text-primary-500 h-full"
               ></div>
-            )}
-          </div>
-          
-          {isReading && (
-            <div className="bg-neutral-50 rounded-lg p-3 mb-3 text-sm text-neutral-600">
-              <p className="font-medium text-neutral-800 mb-1">I heard you say:</p>
-              {currentText && (
-                <p className="italic mb-1">{currentText}</p>
-              )}
-              {interimTranscript && (
-                <div>
-                  <p className="text-xs text-primary-500 font-medium mt-2">Currently hearing:</p>
-                  <p className="italic text-primary-700">{interimTranscript}</p>
-                  {lastWordDetected && (
-                    <div className="mt-1 inline-block bg-primary-100 text-primary-800 text-xs font-medium px-2 py-1 rounded">
-                      Current word: {lastWordDetected}
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           )}
           
-          <div className="text-sm text-neutral-600">
-            {isSpeechRecognitionSupported ? (
-              <>
-                <p className="mb-1">Click "Start Reading" and read the text aloud at your own pace.</p>
-                <p className="text-xs text-neutral-500">The app will highlight words as you read them and analyze your pronunciation.</p>
-              </>
-            ) : (
-              <div className="bg-red-50 text-red-700 p-3 rounded-lg">
-                <p className="font-medium">Speech recognition not supported!</p>
-                <p className="text-xs mt-1">Please use Chrome or Edge browser for the best experience.</p>
+          {/* Speech recognition output */}
+          <div className="flex-1">
+            {isReading ? (
+              <div className="bg-neutral-50 rounded-lg p-3 text-sm text-neutral-600 h-full flex flex-col">
+                {lastWordDetected && (
+                  <div className="mb-1 inline-block bg-primary-100 text-primary-800 text-xs font-medium px-2 py-1 rounded-full">
+                    Last word: {lastWordDetected}
+                  </div>
+                )}
+                {interimTranscript && (
+                  <p className="italic text-primary-700 text-sm">{interimTranscript}</p>
+                )}
+                {!interimTranscript && !lastWordDetected && (
+                  <p className="text-neutral-400 text-sm italic">Listening for your voice...</p>
+                )}
               </div>
+            ) : (
+              <>
+                {assessReadingMutation.data && (
+                  <div className="flex items-center space-x-3">
+                    <div className="bg-white border border-neutral-100 shadow-sm p-2 rounded-lg text-center flex-1">
+                      <div className="text-lg font-bold text-primary-600">
+                        {assessReadingMutation.data.scores.accuracyPct}%
+                      </div>
+                      <div className="text-xs text-neutral-500">Accuracy</div>
+                    </div>
+                    <div className="bg-white border border-neutral-100 shadow-sm p-2 rounded-lg text-center flex-1">
+                      <div className="text-lg font-bold text-green-600">
+                        {assessReadingMutation.data.scores.phonemeHitPct}%
+                      </div>
+                      <div className="text-xs text-neutral-500">Phonemes</div>
+                    </div>
+                    <p className="text-sm text-green-600 flex-1">Great job! Pull up to continue reading.</p>
+                  </div>
+                )}
+                {!assessReadingMutation.data && (
+                  <p className="text-sm text-neutral-600">
+                    Pull up this panel and click "Start Reading" to practice reading aloud.
+                  </p>
+                )}
+              </>
             )}
           </div>
         </div>
         
-        {/* Reading progress tracker - shown when reading completes */}
-        {assessReadingMutation.data && !isReading && (
-          <div className="bg-green-50 border border-green-100 rounded-xl p-5 mb-6">
-            <h3 className="font-display font-bold text-green-800 flex items-center mb-3">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              Reading Assessment
-            </h3>
-            
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="bg-white p-3 rounded-lg text-center">
-                <div className="text-2xl font-bold text-blue-600">
-                  {assessReadingMutation.data.scores.accuracyPct}%
-                </div>
-                <div className="text-xs text-neutral-600">Accuracy</div>
-              </div>
-              <div className="bg-white p-3 rounded-lg text-center">
-                <div className="text-2xl font-bold text-green-600">
-                  {assessReadingMutation.data.scores.phonemeHitPct}%
-                </div>
-                <div className="text-xs text-neutral-600">Phonemes</div>
-              </div>
-            </div>
-            
-            <p className="text-sm text-green-600">Great job! Keep practicing to improve your reading skills.</p>
+        {/* Browser support warning if needed */}
+        {!isSpeechRecognitionSupported && (
+          <div className="mt-2 bg-red-50 text-red-700 p-2 rounded-lg text-xs">
+            <p className="font-medium">Speech recognition not supported in this browser!</p>
+            <p>Please use Chrome or Edge browser for the best experience.</p>
           </div>
         )}
-        
-        {/* Focus phonemes section - with improved error handling */}
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mt-auto">
-          <h3 className="font-medium text-indigo-800 mb-2">Phoneme Focus:</h3>
-          <div className="flex flex-wrap gap-2">
-            {(() => {
-              try {
-                // Safe extraction of unique phonemes with multiple checks
-                const words = page?.words || [];
-                if (!words.length) return <span className="text-sm text-indigo-500 italic">No phoneme data available</span>;
-                
-                const phonemes: string[] = [];
-                
-                // More careful extraction of phonemes with validation
-                for (const word of words) {
-                  if (word && word.phonemes && Array.isArray(word.phonemes)) {
-                    for (const phoneme of word.phonemes) {
-                      if (phoneme && typeof phoneme === 'string' && phoneme.trim() && !phonemes.includes(phoneme)) {
-                        phonemes.push(phoneme);
-                      }
-                    }
-                  }
-                }
-                
-                if (!phonemes.length) {
-                  return <span className="text-sm text-indigo-500 italic">No phoneme data available</span>;
-                }
-                
-                return phonemes.map((phoneme) => (
-                  <span 
-                    key={phoneme} 
-                    className="px-3 py-1.5 bg-white text-indigo-700 rounded-full text-sm font-medium border border-indigo-200 shadow-sm"
-                  >
-                    {phoneme}
-                  </span>
-                ));
-              } catch (error) {
-                console.error("Error displaying phonemes:", error);
-                return <span className="text-sm text-indigo-500 italic">Error displaying phonemes</span>;
-              }
-            })()}
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,14 +1,15 @@
 import { BookPage as BookPageType } from "@/types";
 import { useState, useEffect, useRef } from "react";
 import { highlightWord } from "@/lib/word-highlighting";
-import { Mic } from "lucide-react";
+import { Mic, BookOpen } from "lucide-react";
 
 interface BookPageProps {
   page: BookPageType;
   isReading: boolean;
+  onStartReading?: () => void;
 }
 
-export default function BookPage({ page, isReading }: BookPageProps) {
+export default function BookPage({ page, isReading, onStartReading }: BookPageProps) {
   const [words, setWords] = useState<string[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   const textRef = useRef<HTMLDivElement>(null);
@@ -78,10 +79,22 @@ export default function BookPage({ page, isReading }: BookPageProps) {
   };
 
   return (
-    <div className="w-full md:w-1/2 p-6 md:p-8">
-      {/* Illustration with frame - with improved error handling */}
-      <div className="relative mb-8">
-        <div className="aspect-w-4 aspect-h-3 rounded-2xl shadow-lg overflow-hidden border-4 border-primary-100">
+    <div className="w-full p-4 md:p-6 lg:p-8 mx-auto max-w-4xl">
+      {/* Book title and page number in a subtle header */}
+      <div className="text-center mb-6">
+        <h2 className="text-lg md:text-xl text-neutral-500 font-light">
+          Page {page?.pageNumber || '1'} of {page?.pageNumber ? '?' : '1'}
+        </h2>
+      </div>
+      
+      {/* Illustration with neoskeuomorphic styling */}
+      <div className="relative mb-10">
+        <div 
+          className="aspect-w-16 aspect-h-9 rounded-xl overflow-hidden shadow-[0_10px_40px_-15px_rgba(0,0,0,0.2)] border border-neutral-100"
+          style={{
+            boxShadow: '0 10px 40px -15px rgba(0,0,0,0.2), inset 0 1px 3px rgba(255,255,255,0.7)'
+          }}
+        >
           {(() => {
             try {
               // Check if imageUrl is a valid string
@@ -125,15 +138,18 @@ export default function BookPage({ page, isReading }: BookPageProps) {
         )}
       </div>
       
-      {/* Story text with enhanced word highlighting */}
+      {/* Story text with enhanced word highlighting - neoskeuomorphic style */}
       <div 
         ref={textRef}
-        className="font-display text-2xl md:text-3xl leading-relaxed text-neutral-800 mb-6 p-4 bg-white rounded-xl"
+        className="font-display text-2xl md:text-4xl leading-relaxed text-neutral-800 mb-8 p-6 md:p-8 bg-white rounded-xl relative shadow-[0_5px_30px_-15px_rgba(0,0,0,0.1)] border border-neutral-100"
+        style={{
+          boxShadow: '0 5px 30px -15px rgba(0,0,0,0.1), inset 0 1px 2px rgba(255,255,255,0.9)'
+        }}
       >
         {words.map((word, index) => (
           <span 
             key={index}
-            className={`word mx-0.5 py-1 px-0.5 rounded-md transition-all duration-200 inline-block ${
+            className={`word mx-1 py-1 px-0.5 rounded-md transition-all duration-200 inline-block ${
               index === currentWordIndex 
                 ? "bg-primary-100 text-primary-800 font-medium scale-110 shadow-sm" 
                 : ""
@@ -142,37 +158,104 @@ export default function BookPage({ page, isReading }: BookPageProps) {
             {word}
           </span>
         ))}
+        
+        {/* Read-along activation hover area */}
+        {!isReading && onStartReading && (
+          <div 
+            onClick={onStartReading}
+            className="absolute inset-0 bg-gradient-to-b from-transparent to-primary-50/30 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+          >
+            <div className="bg-white/90 px-5 py-3 rounded-full shadow-md flex items-center space-x-2 text-primary-600 transform hover:scale-105 transition-transform">
+              <Mic className="h-5 w-5" />
+              <span className="font-medium text-base">Click to start reading</span>
+            </div>
+          </div>
+        )}
       </div>
       
-      {/* Focus words section - with improved error handling */}
-      <div className="bg-blue-50 border border-blue-100 rounded-xl p-5 mb-4">
-        <div className="text-sm font-medium text-blue-700 mb-2">Learning Focus Words:</div>
-        <div className="flex flex-wrap gap-2">
-          {(() => {
-            try {
-              // Safe access to fry words with validation
-              const fryWords = page?.fryWords || [];
-              
-              if (!Array.isArray(fryWords) || fryWords.length === 0) {
-                return <span className="text-sm text-blue-500 italic">No focus words on this page</span>;
+      {/* Focus words section with neoskeuomorphic styling */}
+      <div className="flex space-x-4">
+        <div className="bg-white border border-neutral-100 rounded-xl p-5 mb-4 w-1/2 shadow-sm">
+          <div className="flex items-center text-sm font-medium text-neutral-700 mb-3">
+            <BookOpen className="h-4 w-4 text-primary-500 mr-2" />
+            <span>Learning Focus Words</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              try {
+                // Safe access to fry words with validation
+                const fryWords = page?.fryWords || [];
+                
+                if (!Array.isArray(fryWords) || fryWords.length === 0) {
+                  return <span className="text-sm text-neutral-500 italic">No focus words on this page</span>;
+                }
+                
+                // Filter out invalid entries and map only valid words
+                return fryWords
+                  .filter(word => word && typeof word === 'string' && word.trim().length > 0)
+                  .map((word) => (
+                    <span 
+                      key={word} 
+                      className="px-3 py-1.5 bg-neutral-50 text-neutral-700 rounded-lg text-sm font-medium border border-neutral-200 shadow-sm"
+                    >
+                      {word}
+                    </span>
+                  ));
+              } catch (error) {
+                console.error("Error rendering fry words:", error);
+                return <span className="text-sm text-neutral-500 italic">Error displaying focus words</span>;
               }
-              
-              // Filter out invalid entries and map only valid words
-              return fryWords
-                .filter(word => word && typeof word === 'string' && word.trim().length > 0)
-                .map((word) => (
+            })()}
+          </div>
+        </div>
+        
+        {/* Phonemes section */}
+        <div className="bg-white border border-neutral-100 rounded-xl p-5 mb-4 w-1/2 shadow-sm">
+          <div className="flex items-center text-sm font-medium text-neutral-700 mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary-500 mr-2">
+              <path d="M9 21c0 1 1 1 1 1h4s1 0 1-1-1-4-1-4h-4s-1 3-1 4Z"></path>
+              <path d="M12 17c2.2 0 4-1.8 4-4V6c0-2.2-1.8-4-4-4S8 3.8 8 6v7c0 2.2 1.8 4 4 4Z"></path>
+            </svg>
+            <span>Phoneme Practice</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              try {
+                // Safe extraction of unique phonemes with multiple checks
+                const words = page?.words || [];
+                if (!words.length) return <span className="text-sm text-neutral-500 italic">No phoneme data available</span>;
+                
+                const phonemes: string[] = [];
+                
+                // More careful extraction of phonemes with validation
+                for (const word of words) {
+                  if (word && word.phonemes && Array.isArray(word.phonemes)) {
+                    for (const phoneme of word.phonemes) {
+                      if (phoneme && typeof phoneme === 'string' && phoneme.trim() && !phonemes.includes(phoneme)) {
+                        phonemes.push(phoneme);
+                      }
+                    }
+                  }
+                }
+                
+                if (!phonemes.length) {
+                  return <span className="text-sm text-neutral-500 italic">No phoneme data available</span>;
+                }
+                
+                return phonemes.map((phoneme) => (
                   <span 
-                    key={word} 
-                    className="px-3 py-1.5 bg-white text-blue-700 rounded-full text-sm font-medium border border-blue-200 shadow-sm"
+                    key={phoneme} 
+                    className="px-3 py-1.5 bg-neutral-50 text-neutral-700 rounded-lg text-sm font-medium border border-neutral-200 shadow-sm"
                   >
-                    {word}
+                    {phoneme}
                   </span>
                 ));
-            } catch (error) {
-              console.error("Error rendering fry words:", error);
-              return <span className="text-sm text-blue-500 italic">Error displaying focus words</span>;
-            }
-          })()}
+              } catch (error) {
+                console.error("Error displaying phonemes:", error);
+                return <span className="text-sm text-neutral-500 italic">Error displaying phonemes</span>;
+              }
+            })()}
+          </div>
         </div>
       </div>
     </div>
