@@ -107,16 +107,18 @@ const MicrophonePermission = ({ onPermissionGranted, onPermissionDenied }: Micro
     );
   }
   
-  if (permissionState === 'granted') {
-    return null; // No UI needed when permission is already granted
-  }
+  // Even if the browser says permission is granted, we still show the UI
+  // This helps in cases where the browser thinks permission is granted but the mic isn't working
+  // User can click the button to explicitly request again
   
   return (
     <div className="p-4 bg-blue-50 text-blue-700 rounded-lg mb-4">
       <div className="flex flex-col items-center">
-        <h3 className="font-medium text-lg mb-2">Microphone Permission Required</h3>
+        <h3 className="font-medium text-lg mb-2">Microphone Access Required</h3>
         <p className="text-center mb-4">
-          To use the read-along feature with speech recognition, you need to grant microphone access.
+          {permissionState === 'granted' 
+            ? "Your browser indicates microphone permission is granted, but we need to verify it's working. Please click the button below."
+            : "To use the read-along feature with speech recognition, you need to grant microphone access."}
         </p>
         <Button 
           onClick={requestMicrophoneAccess}
@@ -124,7 +126,8 @@ const MicrophonePermission = ({ onPermissionGranted, onPermissionDenied }: Micro
           className="bg-blue-600 hover:bg-blue-700"
         >
           <Mic className="mr-2 h-4 w-4" />
-          {isRequesting ? "Requesting Access..." : "Allow Microphone Access"}
+          {isRequesting ? "Requesting Access..." : 
+            permissionState === 'granted' ? "Verify Microphone" : "Allow Microphone Access"}
         </Button>
         {permissionState === 'denied' && (
           <p className="mt-3 text-red-600 text-sm">

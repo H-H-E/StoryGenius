@@ -286,6 +286,11 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     startListeningWithPermission();
   };
   
+  // Debug: log any permission status changes
+  useEffect(() => {
+    console.log("Permission status changed to:", permissionStatus);
+  }, [permissionStatus]);
+  
   // When microphone permission is denied
   const handlePermissionDenied = () => {
     console.log("Microphone permission denied via permission component");
@@ -410,8 +415,8 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       style={{ transform: isReading ? 'translateY(0)' : 'translateY(85%)', maxHeight: '250px' }}>
       <div className="max-w-4xl mx-auto">
         {/* Show microphone permission prompt when needed */}
-        {/* Show microphone permission prompt when permission is in prompt state */}
-        {(showPermissionRequest || permissionStatus === 'prompt') && (
+        {/* Show the microphone permission component when explicitly requested */}
+        {showPermissionRequest && (
           <div className="mb-4">
             <MicrophonePermission
               onPermissionGranted={() => {
@@ -535,9 +540,15 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
                   </div>
                 )}
                 {!assessReadingMutation.data && (
-                  <p className="text-sm text-neutral-600">
-                    Pull up this panel and click "Start Reading" to practice reading aloud.
-                  </p>
+                  <div>
+                    <p className="text-sm text-neutral-600 mb-2">
+                      Pull up this panel and click "Start Reading" to practice reading aloud.
+                    </p>
+                    <div className="text-xs text-neutral-500 underline cursor-pointer hover:text-primary-600" 
+                         onClick={() => setShowPermissionRequest(true)}>
+                      Having microphone issues? Click here to verify access
+                    </div>
+                  </div>
                 )}
               </>
             )}
