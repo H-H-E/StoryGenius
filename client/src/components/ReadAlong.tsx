@@ -7,6 +7,7 @@ import { Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { highlightWord } from "@/lib/word-highlighting";
+import MicrophonePermission from "@/components/MicrophonePermission";
 
 // Add microphoneStream to Window interface for TypeScript
 declare global {
@@ -272,23 +273,29 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     }
   };
   
-  const startReadingSession = async () => {
-    // Clear any existing text and state
-    setCurrentText("");
-    resetTranscript();
-    setCurrentWordIndex(-1);
+  // Whether we need to show the permission UI
+  const [showPermissionRequest, setShowPermissionRequest] = useState(false);
+  
+  // When microphone permission is granted
+  const handlePermissionGranted = () => {
+    console.log("Microphone permission granted via permission component");
     
-    // First explicitly request microphone permission
-    const permissionGranted = await requestMicrophonePermission();
-    if (!permissionGranted) {
-      toast({
-        title: "Microphone Required",
-        description: "Please allow microphone access to continue.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
+    // Continue with starting reading session now that we have permission
+    startListeningWithPermission();
+  };
+  
+  // When microphone permission is denied
+  const handlePermissionDenied = () => {
+    console.log("Microphone permission denied via permission component");
+    toast({
+      title: "Microphone Access Required",
+      description: "Please allow microphone access in your browser settings to use the reading feature.",
+      variant: "destructive"
+    });
+  };
+  
+  // Actual speech recognition start after permission
+  const startListeningWithPermission = () => {
     // Set reading mode and start listening
     setIsReading(true);
     
@@ -309,6 +316,17 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
         variant: "destructive"
       });
     }
+  };
+  
+  // First step of reading session - clear state and check permissions
+  const startReadingSession = async () => {
+    // Clear any existing text and state
+    setCurrentText("");
+    resetTranscript();
+    setCurrentWordIndex(-1);
+    
+    // Show the permission UI - safer approach than trying to get permissions directly
+    setShowPermissionRequest(true);
   };
   
   const stopReadingSession = async () => {
@@ -372,6 +390,22 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-neutral-200 shadow-lg p-4 z-50 transition-all duration-300"
       style={{ transform: isReading ? 'translateY(0)' : 'translateY(85%)', maxHeight: '250px' }}>
       <div className="max-w-4xl mx-auto">
+        {/* Show microphone permission prompt when needed */}
+        {showPermissionRequest && (
+          <div className="mb-4">
+            <MicrophonePermission
+              onPermissionGranted={() => {
+                setShowPermissionRequest(false);
+                handlePermissionGranted();
+              }}
+              onPermissionDenied={() => {
+                setShowPermissionRequest(false);
+                handlePermissionDenied();
+              }}
+            />
+          </div>
+        )}
+        
         {/* Pull tab and controls */}
         <div className="flex justify-between items-center mb-3">
           <div className="flex items-center">
@@ -397,7 +431,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
               variant={isReading ? "destructive" : "default"}
               onClick={toggleReading}
               className={`h-10 ${isReading ? '' : ''}`}
-              disabled={assessReadingMutation.isPending}
+              disabled={assessReadingMutation.isPending || showPermissionRequest}
               size="sm"
             >
               {isReading ? (
