@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    
+    --primary: 246 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 153 72% 40%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --accent: 35 92% 51%;
+    --accent-foreground: 0 0% 100%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 246 100% 60%;
+    --radius: 0.75rem;
+
+    --chart-1: 246 100% 60%;
+    --chart-2: 153 72% 40%;
+    --chart-3: 35 92% 51%;
+    --chart-4: 0 84.2% 60.2%;
+    --chart-5: 262 83.3% 57.8%;
+
+    --sidebar-background: 246 100% 60%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 0 0% 100%;
+    --sidebar-primary-foreground: 246 100% 60%;
+    --sidebar-accent: 0 0% 100%;
+    --sidebar-accent-foreground: 246 100% 60%;
+    --sidebar-border: 246 70% 70%;
+    --sidebar-ring: 0 0% 100%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-body antialiased bg-neutral-50 text-neutral-800;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  /* Animation for word highlighting */
+  @keyframes highlight {
+    0% { background-color: rgba(99, 102, 241, 0); }
+    50% { background-color: rgba(99, 102, 241, 0.2); }
+    100% { background-color: rgba(99, 102, 241, 0); }
+  }
+  
+  .word-highlight {
+    animation: highlight 1.5s ease-in-out;
+    border-radius: 4px;
+    padding: 0 2px;
+  }
+  
+  /* Audio visualization */
+  .audio-wave {
+    display: flex;
+    align-items: center;
+    height: 40px;
+  }
+  
+  .audio-bar {
+    width: 4px;
+    margin: 0 2px;
+    background-color: #4F46E5;
+    border-radius: 2px;
+    transition: height 0.1s ease;
+  }
+}
