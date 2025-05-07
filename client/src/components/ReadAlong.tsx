@@ -8,6 +8,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import { highlightWord } from "@/lib/word-highlighting";
 
+// Add microphoneStream to Window interface for TypeScript
+declare global {
+  interface Window {
+    microphoneStream?: MediaStream;
+  }
+}
+
 interface ReadAlongProps {
   bookId: number;
   page: BookPage;
@@ -228,11 +235,47 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     }
   };
   
-  const startReadingSession = () => {
+  // Function to explicitly request microphone permissions
+  const requestMicrophonePermission = async (): Promise<boolean> => {
+    try {
+      // First try to get user media to trigger the permission prompt
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      
+      // If we got here, permission was granted
+      console.log("Microphone permission granted");
+      
+      // Keep the stream active while we're recording
+      // Store the stream on window for later cleanup
+      (window as any).microphoneStream = stream;
+      
+      return true;
+    } catch (error) {
+      console.error("Microphone permission denied:", error);
+      toast({
+        title: "Microphone Access Denied",
+        description: "Please allow microphone access to use the reading feature.",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+  
+  const startReadingSession = async () => {
     // Clear any existing text and state
     setCurrentText("");
     resetTranscript();
     setCurrentWordIndex(-1);
+    
+    // First explicitly request microphone permission
+    const permissionGranted = await requestMicrophonePermission();
+    if (!permissionGranted) {
+      toast({
+        title: "Microphone Required",
+        description: "Please allow microphone access to continue.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     // Set reading mode and start listening
     setIsReading(true);
@@ -270,6 +313,18 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     // Stop reading mode and speech recognition
     setIsReading(false);
     setCurrentWordIndex(-1);
+    
+    // Clean up microphone stream if it exists
+    try {
+      const micStream = (window as any).microphoneStream;
+      if (micStream && typeof micStream.getTracks === 'function') {
+        micStream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+        console.log("Microphone stream stopped");
+        (window as any).microphoneStream = null;
+      }
+    } catch (error) {
+      console.error("Error stopping microphone stream:", error);
+    }
     
     if (isSpeechRecognitionSupported) {
       stopListening();

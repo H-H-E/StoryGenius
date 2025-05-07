@@ -182,6 +182,15 @@ export default function BookPage({ page, isReading, onStartReading }: BookPagePr
             </div>
           </div>
         )}
+        
+        {/* Invisible overlay to make the entire text area clickable for reading */}
+        {!isReading && onStartReading && (
+          <div 
+            onClick={onStartReading}
+            className="absolute inset-0 cursor-pointer"
+            aria-label="Start reading"
+          />
+        )}
       </div>
       
       {/* Focus words section with neoskeuomorphic styling */}
