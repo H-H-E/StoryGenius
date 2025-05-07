@@ -182,11 +182,15 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading, onWor
         
         // Try the callback prop for direct component communication
         if (onWordDetected && typeof onWordDetected === 'function') {
+          console.log(`ReadAlong: Calling onWordDetected with: ${lastWordDetected}`);
           onWordDetected(lastWordDetected);
         }
         // Fallback to the window global approach (legacy)
         else if (typeof highlightBookPageWord === 'function') {
+          console.log(`ReadAlong: Calling window.highlightBookPageWord with: ${lastWordDetected}`);
           highlightBookPageWord(lastWordDetected);
+        } else {
+          console.error("ReadAlong: No mechanism available to highlight words!");
         }
       } 
       // If no lastWordDetected but we have interim transcript, use that

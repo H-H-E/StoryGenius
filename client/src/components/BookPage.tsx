@@ -78,24 +78,30 @@ const BookPage = forwardRef<BookPageHandle, BookPageProps>(({
   // Function to be called from parent component with recognized word
   const highlightRecognizedWord = (word: string | null | undefined) => {
     try {
-      if (!word || !words || words.length === 0) return;
+      console.log(`BookPage: highlightRecognizedWord called with word: ${word}`);
+      
+      if (!word || !words || words.length === 0) {
+        console.log(`BookPage: Cannot highlight - invalid word or empty words array. Word: ${word}, Words length: ${words.length}`);
+        return;
+      }
+      
+      console.log(`BookPage: Words available for matching:`, words.slice(0, 5).join(", ") + (words.length > 5 ? "..." : ""));
       
       const index = highlightWord(words, word);
       if (index >= 0) {
+        console.log(`BookPage: Successfully found match for "${word}" at index ${index}: "${words[index]}"`);
         setCurrentWordIndex(index);
-        
-        // Log successful highlighting
-        console.log(`Highlighting word: ${word} at index ${index}`);
         
         // Call the callback if provided
         if (onWordHighlight && typeof onWordHighlight === 'function') {
+          console.log(`BookPage: Calling onWordHighlight callback with: ${word}`);
           onWordHighlight(word);
         }
       } else {
-        console.log(`Could not find match for word: ${word}`);
+        console.log(`BookPage: No match found for word: "${word}" among ${words.length} available words`);
       }
     } catch (error) {
-      console.error("Error highlighting recognized word:", error);
+      console.error("BookPage: Error highlighting recognized word:", error);
     }
   };
   
