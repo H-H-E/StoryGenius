@@ -31,6 +31,10 @@ export interface StoryGenerationRequest {
   readingLevel: string;
   theme: string;
   numPages: number;
+  customTitle?: string;
+  mainCharacters?: string;
+  plotElements?: string;
+  artStyle?: string;
 }
 
 // Reading assessment types

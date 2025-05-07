@@ -3,6 +3,15 @@ import { useLocation } from "wouter";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StoryGenerationRequest, Theme, ReadingLevel } from "@/types";
 import { Wand2, Minus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +29,20 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
   const [selectedReadingLevel, setSelectedReadingLevel] = useState<string>(readingLevels.length > 0 ? readingLevels[0].id : "");
   const [selectedTheme, setSelectedTheme] = useState<string>(themes.length > 0 ? themes[0].id : "");
   const [numPages, setNumPages] = useState(8);
+  const [customTitle, setCustomTitle] = useState("");
+  const [mainCharacters, setMainCharacters] = useState("");
+  const [plotElements, setPlotElements] = useState("");
+  const [artStyle, setArtStyle] = useState("children's book illustration");
+  
+  // Art style options
+  const artStyleOptions = [
+    { value: "children's book illustration", label: "Children's Book (Default)" },
+    { value: "watercolor painting", label: "Watercolor Painting" },
+    { value: "cartoon", label: "Cartoon" },
+    { value: "3D animation", label: "3D Animation" },
+    { value: "realistic", label: "Realistic" },
+    { value: "pixel art", label: "Pixel Art" }
+  ];
   
   const createStoryMutation = useMutation({
     mutationFn: async (data: StoryGenerationRequest) => {
@@ -58,7 +81,11 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
     createStoryMutation.mutate({
       readingLevel: selectedReadingLevel,
       theme: selectedTheme,
-      numPages: numPages
+      numPages: numPages,
+      customTitle: customTitle.trim() || undefined,
+      mainCharacters: mainCharacters.trim() || undefined,
+      plotElements: plotElements.trim() || undefined,
+      artStyle: artStyle
     });
   };
   
@@ -168,6 +195,58 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
                 </Button>
               </div>
             </div>
+          </div>
+          
+          {/* Custom Title */}
+          <div>
+            <label className="block font-display font-semibold text-lg mb-3 text-neutral-800">Custom Title <span className="text-sm font-normal text-neutral-500">(Optional)</span></label>
+            <Input 
+              value={customTitle}
+              onChange={(e) => setCustomTitle(e.target.value)}
+              placeholder="Enter a custom title for your story"
+              className="w-full"
+            />
+          </div>
+          
+          {/* Main Characters */}
+          <div>
+            <label className="block font-display font-semibold text-lg mb-3 text-neutral-800">Main Characters <span className="text-sm font-normal text-neutral-500">(Optional)</span></label>
+            <Input 
+              value={mainCharacters}
+              onChange={(e) => setMainCharacters(e.target.value)}
+              placeholder="Example: a brave lion, a wise owl"
+              className="w-full"
+            />
+            <p className="text-xs text-neutral-500 mt-1">Add characters you'd like to appear in the story</p>
+          </div>
+          
+          {/* Plot Elements */}
+          <div>
+            <label className="block font-display font-semibold text-lg mb-3 text-neutral-800">Plot Elements <span className="text-sm font-normal text-neutral-500">(Optional)</span></label>
+            <Textarea 
+              value={plotElements}
+              onChange={(e) => setPlotElements(e.target.value)}
+              placeholder="Example: finding a treasure, learning about friendship"
+              className="w-full min-h-[80px]"
+            />
+            <p className="text-xs text-neutral-500 mt-1">Add key elements or lessons for your story</p>
+          </div>
+          
+          {/* Art Style */}
+          <div>
+            <label className="block font-display font-semibold text-lg mb-3 text-neutral-800">Illustration Style</label>
+            <Select value={artStyle} onValueChange={setArtStyle}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select an illustration style" />
+              </SelectTrigger>
+              <SelectContent>
+                {artStyleOptions.map((style) => (
+                  <SelectItem key={style.value} value={style.value}>
+                    {style.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Submit Button */}

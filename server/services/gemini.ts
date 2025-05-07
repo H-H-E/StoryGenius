@@ -54,14 +54,42 @@ export async function callGemini(data: any, type: string = "storybook"): Promise
       },
     });
 
-    const prompt = `Generate a storybook titled "${data.theme}" at readingLevel "${data.reading_level}" with ${data.num_pages} pages.
+    // Prepare title - either use custom title or generate based on theme
+    const title = data.custom_title ? data.custom_title : `A ${data.theme} Story`;
+    
+    // Build the character description
+    const charactersDescription = data.main_characters 
+      ? `Include these main characters: ${data.main_characters}.` 
+      : '';
+    
+    // Build the plot elements description
+    const plotDescription = data.plot_elements
+      ? `Include these plot elements: ${data.plot_elements}.`
+      : '';
+    
+    // Art style for consistency
+    const artStyle = data.art_style || "children's book illustration";
+    
+    const prompt = `Generate a storybook titled "${title}" at readingLevel "${data.reading_level}" with ${data.num_pages} pages.
+
 Each page must include:
 - pageNumber (1–${data.num_pages})
 - words: an array of objects { text: string, phonemes: [string,…] }
-- imagePrompt: a rich prompt for the illustration
+- imagePrompt: a detailed prompt for the illustration
 
-Make sure the complexity matches the reading level. Break down each word into correct phonemes in ARPABET format.
-The story should be related to the theme: ${data.theme}.
+Story requirements:
+- Make sure the complexity matches the reading level "${data.reading_level}"
+- Break down each word into correct phonemes in ARPABET format
+- The story should be related to the theme: ${data.theme}
+${charactersDescription}
+${plotDescription}
+
+For image prompts:
+- Be very detailed and specific about characters, scenes, and actions
+- Maintain character consistency from page to page (same appearance, clothing, etc.)
+- Include art style: "${artStyle}"
+- Each prompt should be 50-100 words and very descriptive
+- Include consistent lighting, scene details, character poses, and emotions
 
 Output ONLY valid JSON.`;
 

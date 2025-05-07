@@ -30,9 +30,15 @@ export async function generateImage(options: ReplicateImageRequest): Promise<Rep
     prompt, 
     width = 768, 
     height = 768, 
-    steps = 4, 
+    steps = 8, // Increased for better quality 
     num_outputs = 1 
   } = options;
+  
+  // Enhance prompt with consistency guidelines if not already included
+  let enhancedPrompt = prompt;
+  if (!prompt.toLowerCase().includes('style:')) {
+    enhancedPrompt = `${prompt}. Style: children's book illustration, vibrant colors, detailed.`;
+  }
 
   const apiUrl = "https://api.replicate.com/v1/predictions";
   const requestBody = {
