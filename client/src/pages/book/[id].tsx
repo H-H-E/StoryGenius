@@ -1,6 +1,6 @@
 import { useRoute, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import BookPage from "@/components/BookPage";
 import ReadAlong from "@/components/ReadAlong";
 import { Button } from "@/components/ui/button";

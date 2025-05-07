@@ -14,12 +14,13 @@ export interface BookPageHandle {
   highlightWord: (word: string) => void;
 }
 
+// Use forwardRef to expose component methods to parent components
 const BookPage = forwardRef<BookPageHandle, BookPageProps>(({ 
   page, 
   isReading, 
   onStartReading, 
   onWordHighlight 
-}: BookPageProps, ref) => {
+}, ref) => {
   const [words, setWords] = useState<string[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   const textRef = useRef<HTMLDivElement>(null);
