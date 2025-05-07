@@ -1,0 +1,204 @@
+0. Tech stack cheat‑sheet
+
+Layer	Picks & why
+Frontend	Next.js + Vite (fast dev & SSR)Tailwind + shadcn/ui for buttery‑smooth componentsReact‑Query for data & STT stateMark.js for word‑level highlighting
+On‑device STT	Web Speech API (Chrome/Edge) fallback to Whisper‑tiny WASM
+Backend/API	Cloudflare Workers (Edge) or a skinny Node servertRPC or simple REST endpoints to proxy Gemini / Replicate calls & sign URLs
+Auth & DB	Supabase Postgres; tables: users, books, reading_events, fry_progress, phoneme_progress
+Image CDN	Supabase Storage or Cloudflare R2, signed‑URL uploads straight from the Worker
+
+
+⸻
+
+1. Story‑book generation flow
+
+sequenceDiagram
+User->>UI: picks level “Fry‑2”, theme “space pirates”, 8 pages
+UI->>Server: POST /api/books/new (payload below)
+Server->>Gemini: JSON‑schema structured call
+Gemini-->>Server: JSON book blueprint
+loop per page
+  Server-->>Replicate: POST /v1/predictions (Flux‑Schnell)
+  Replicate-->>Server: image URL
+end
+Server->>DB: store book + image URLs
+Server-->>UI: book_id
+UI-->>User: renders first page
+
+
+⸻
+
+1.1 Gemini call (book blueprint)
+
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$API_KEY
+Content-Type: application/json
+
+{
+  "contents": [
+    {
+      "role": "user",
+      "parts": [
+        {
+          "text": "storybook.v1\n{\"reading_level\":\"Fry-2\",\"theme\":\"space pirates\",\"num_pages\":8}"
+        }
+      ]
+    }
+  ],
+  "generationConfig": {
+    "response_format": {
+      "type": "json_schema",
+      "schema": "StoryBookSchema"
+    }
+  }
+}
+
+StoryBookSchema
+
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "StoryBook",
+  "type": "object",
+  "required": ["title", "readingLevel", "pages"],
+  "properties": {
+    "title": { "type": "string" },
+    "readingLevel": { "type": "string", "description": "Fry list bucket or Lexile band" },
+    "pages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pageNumber", "text", "imagePrompt", "fryWords", "phonemes"],
+        "properties": {
+          "pageNumber": { "type": "integer" },
+          "text": { "type": "string", "maxLength": 90 },
+          "imagePrompt": { "type": "string", "description": "Rich prompt for Flux‑Schnell" },
+          "fryWords": { "type": "array", "items": { "type": "string" } },
+          "phonemes": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}
+
+
+⸻
+
+1.2 Replicate (Flux‑Schnell) call per page
+
+curl -X POST \
+  -H "Authorization: Token $REPLICATE_TOKEN" \
+  -H "Content-Type: application/json" \
+  https://api.replicate.com/v1/predictions \
+  -d '{
+        "version":"black-forest-labs/flux-schnell",
+        "input":{
+          "prompt":"<<<imagePrompt>>>",
+          "steps":4,
+          "num_outputs":1,
+          "width":768,
+          "height":768
+        }
+      }'
+
+Flux‑Schnell is billed per image and is dirt‑cheap at roughly $0.003 per output  ￼.
+
+⸻
+
+2. Read‑along & assessment flow
+	1.	Word‑level highlight
+Browser side STT streams interim transcripts → diff‑match‑patch against expected sentence → highlight <span>s in real time.
+	2.	Chunk upload for accuracy grading
+After each sentence (or “page”), the app packages:
+
+{ "expected": "Captain Cosmo zoomed...", "actual": "Cap'n Cosmo zoomed..." }
+
+and POSTs /api/reading-event.
+
+	3.	Backend Gemini call (pronunciation analysis)
+
+POST https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$API_KEY
+Content-Type: application/json
+
+{
+  "contents":[
+    {"role":"system","parts":[{"text":"Return JSON compliant with ReadingAssessmentSchema."}]},
+    {"role":"user","parts":[{"text":"assessment.v1\n{\"expected\":\"Captain Cosmo zoomed past the moon.\",\"actual\":\"Cap'n Cosmo zoomed pass the moon.\"}"}]}
+  ],
+  "generationConfig":{
+    "response_format":{
+      "type":"json_schema",
+      "schema":"ReadingAssessmentSchema"
+    }
+  }
+}
+
+ReadingAssessmentSchema
+
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"ReadingAssessment",
+  "type":"object",
+  "required":["sentence","analysis","scores"],
+  "properties":{
+    "sentence":{"type":"string"},
+    "analysis":{
+      "type":"array",
+      "items":{
+        "type":"object",
+        "required":["word","phonemeBreakdown","correct"],
+        "properties":{
+          "word":{"type":"string"},
+          "phonemeBreakdown":{
+            "type":"array",
+            "items":{
+              "type":"object",
+              "required":["phoneme","hit"],
+              "properties":{
+                "phoneme":{"type":"string"},
+                "hit":{"type":"boolean"}
+              }
+            }
+          },
+          "correct":{"type":"boolean"}
+        }
+      }
+    },
+    "scores":{
+      "type":"object",
+      "required":["accuracyPct","fryHitPct","phonemeHitPct"],
+      "properties":{
+        "accuracyPct":{"type":"number","minimum":0,"maximum":100},
+        "fryHitPct":{"type":"number"},
+        "phonemeHitPct":{"type":"number"}
+      }
+    }
+  }
+}
+
+Store the result in reading_events, roll‑up per user nightly to update fry_progress and phoneme_progress.
+
+⸻
+
+3. Minimal UI sketch (pages folder)
+
+/pages
+  /index.tsx          // Choose level & theme
+  /book/[id].tsx      // Reader
+  /dashboard.tsx      // Teacher progress view
+/components
+  BookPage.tsx        // Shows image + text + highlights
+  ProgressCard.tsx
+/lib
+  gemini.ts           // fetch wrapper
+  replicate.ts
+
+
+⸻
+
+4. Quick wins & cautions
+	•	Limit Gemini tokens by passing text‑only; image prompts go to Replicate.
+	•	Keep each page ≤90 chars to fit small screens and STT timeouts.
+	•	Cache Fry & phoneme lists in SW; they never change.
+	•	Rate‑limit Replicate calls—wrap in a queue so you don’t melt your wallet.
+	•	In browsers without Web Speech API, default to manual “tap word as you read” fallback.
+
+Done. Ship it, test with actual 8‑year‑olds, iterate like mad.
