@@ -171,6 +171,10 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       // First try to use the window function for highlighting (exposed by BookPage component)
       const highlightBookPageWord = (window as any).highlightBookPageWord;
       
+      // Debug the global function availability
+      console.log("ReadAlong: highlightBookPageWord function available:", 
+        typeof highlightBookPageWord === 'function', highlightBookPageWord);
+      
       // First priority - use lastWordDetected for real-time highlighting
       if (lastWordDetected && lastWordDetected.trim()) {
         console.log("Using lastWordDetected for highlighting:", lastWordDetected);

@@ -7,9 +7,10 @@ interface BookPageProps {
   page: BookPageType;
   isReading: boolean;
   onStartReading?: () => void;
+  onWordHighlight?: (word: string) => void; // Add a callback prop for word highlighting
 }
 
-export default function BookPage({ page, isReading, onStartReading }: BookPageProps) {
+export default function BookPage({ page, isReading, onStartReading, onWordHighlight }: BookPageProps) {
   const [words, setWords] = useState<string[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   const textRef = useRef<HTMLDivElement>(null);
@@ -75,6 +76,11 @@ export default function BookPage({ page, isReading, onStartReading }: BookPagePr
         
         // Log successful highlighting
         console.log(`Highlighting word: ${word} at index ${index}`);
+        
+        // Call the callback if provided
+        if (onWordHighlight && typeof onWordHighlight === 'function') {
+          onWordHighlight(word);
+        }
       } else {
         console.log(`Could not find match for word: ${word}`);
       }
@@ -87,7 +93,8 @@ export default function BookPage({ page, isReading, onStartReading }: BookPagePr
   useEffect(() => {
     // Expose the highlight function to the window for component communication
     (window as any).highlightBookPageWord = highlightRecognizedWord;
-  }, []);
+    console.log("BookPage: Exposing highlightBookPageWord function to window", !!highlightRecognizedWord);
+  }, [highlightRecognizedWord, words, onWordHighlight]);
 
   return (
     <div className="w-full p-4 md:p-6 lg:p-8 mx-auto max-w-4xl">
