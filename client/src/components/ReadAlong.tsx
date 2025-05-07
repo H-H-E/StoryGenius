@@ -47,8 +47,20 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     confidence,
     isListening,
     isSpeechRecognitionSupported,
+    error: recognitionError,
     resetTranscript 
   } = useSpeechRecognition();
+  
+  // Show any speech recognition errors as toasts
+  useEffect(() => {
+    if (recognitionError) {
+      toast({
+        title: "Speech Recognition Error",
+        description: recognitionError,
+        variant: "destructive"
+      });
+    }
+  }, [recognitionError, toast]);
 
   // Animation for audio visualization
   useEffect(() => {
