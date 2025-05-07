@@ -44,6 +44,7 @@ export function registerBookRoutes(app: Express) {
     try {
       const { 
         readingLevel, 
+        includeFryWords,
         theme, 
         numPages, 
         customTitle,
@@ -61,6 +62,7 @@ export function registerBookRoutes(app: Express) {
       // Call Gemini API to generate book content
       const bookContent = await callGemini({
         reading_level: readingLevel,
+        include_fry_words: includeFryWords,
         theme: theme,
         num_pages: numPages,
         custom_title: customTitle,

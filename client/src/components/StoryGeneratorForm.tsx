@@ -5,6 +5,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -33,6 +34,7 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
   const { toast } = useToast();
   
   const [selectedReadingLevel, setSelectedReadingLevel] = useState<string>(readingLevels.length > 0 ? readingLevels[0].id : "");
+  const [includeFryWords, setIncludeFryWords] = useState<boolean>(false);
   const [customTheme, setCustomTheme] = useState("");
   const [numPages, setNumPages] = useState(8);
   const [customTitle, setCustomTitle] = useState("");
@@ -86,6 +88,7 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
     
     createStoryMutation.mutate({
       readingLevel: selectedReadingLevel,
+      includeFryWords,
       theme: customTheme.trim(),
       numPages: numPages,
       customTitle: customTitle.trim() || undefined,
@@ -129,26 +132,33 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
                 </Tooltip>
               </TooltipProvider>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {readingLevels.map((level) => (
-                <button
-                  key={level.id}
-                  type="button"
-                  className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-colors ${
-                    selectedReadingLevel === level.id
-                      ? "border-primary-600 bg-primary-50 hover:bg-primary-100"
-                      : "border-neutral-200 hover:bg-neutral-50"
-                  }`}
-                  onClick={() => setSelectedReadingLevel(level.id)}
+            <div className="space-y-6">
+              <Select value={selectedReadingLevel} onValueChange={setSelectedReadingLevel}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a reading level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {readingLevels.map((level) => (
+                    <SelectItem key={level.id} value={level.id}>
+                      {level.label} - {level.description}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="includeFryWords" 
+                  checked={includeFryWords}
+                  onCheckedChange={(checked) => setIncludeFryWords(checked === true)}
+                />
+                <label
+                  htmlFor="includeFryWords"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  <span className={`font-display font-bold text-2xl ${
-                    selectedReadingLevel === level.id ? "text-primary-600" : "text-neutral-700"
-                  }`}>
-                    {level.label}
-                  </span>
-                  <span className="text-sm text-neutral-600 mt-1">{level.description}</span>
-                </button>
-              ))}
+                  Include Fry words for this reading level
+                </label>
+              </div>
             </div>
           </div>
           

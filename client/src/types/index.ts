@@ -29,6 +29,7 @@ export interface Book {
 // Story generation request types
 export interface StoryGenerationRequest {
   readingLevel: string;
+  includeFryWords: boolean;
   theme: string;
   numPages: number;
   customTitle?: string;

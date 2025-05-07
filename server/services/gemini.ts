@@ -70,6 +70,11 @@ export async function callGemini(data: any, type: string = "storybook"): Promise
     // Art style for consistency
     const artStyle = data.art_style || "children's book illustration";
     
+    // Fry words instruction
+    const fryWordsInstruction = data.include_fry_words === true 
+      ? `- Include Fry sight words appropriate for reading level "${data.reading_level}"\n`
+      : '';
+    
     const prompt = `Generate a storybook titled "${title}" at readingLevel "${data.reading_level}" with ${data.num_pages} pages.
 
 Each page must include:
@@ -80,7 +85,7 @@ Each page must include:
 Story requirements:
 - Make sure the complexity matches the reading level "${data.reading_level}"
 - Break down each word into correct phonemes in ARPABET format (these are used for pronunciation analysis)
-- The story should be related to the theme: ${data.theme}
+${fryWordsInstruction}- The story should be related to the theme: ${data.theme}
 ${charactersDescription}
 ${plotDescription}
 
