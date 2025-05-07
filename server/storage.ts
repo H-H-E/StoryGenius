@@ -43,20 +43,41 @@ export const storage = {
   },
 
   // Books
-  async getBooks() {
-    const allBooks = await db.query.books.findMany({
-      orderBy: [desc(books.createdAt)],
-      with: {
-        pages: true
-      }
-    });
+  async getBooks(userId?: number) {
+    // Query books, filtering by userId if provided
+    const query = userId 
+      ? db.query.books.findMany({
+          where: eq(books.userId, userId),
+          orderBy: [desc(books.createdAt)],
+          with: {
+            pages: true
+          }
+        })
+      : db.query.books.findMany({
+          orderBy: [desc(books.createdAt)],
+          with: {
+            pages: true
+          }
+        });
+
+    const allBooks = await query;
 
     // Get completion count for each book
     const booksWithCompletionCount = await Promise.all(
       allBooks.map(async (book) => {
-        const events = await db.query.readingEvents.findMany({
-          where: eq(readingEvents.bookId, book.id)
-        });
+        // Only include events for the specified user if userId provided
+        const eventsQuery = userId
+          ? db.query.readingEvents.findMany({
+              where: and(
+                eq(readingEvents.bookId, book.id),
+                eq(readingEvents.userId, userId)
+              )
+            })
+          : db.query.readingEvents.findMany({
+              where: eq(readingEvents.bookId, book.id)
+            });
+
+        const events = await eventsQuery;
 
         // Count unique completion events (one per page)
         const uniquePageEvents = new Set();
