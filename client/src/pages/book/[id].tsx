@@ -49,6 +49,9 @@ export default function BookReader() {
     };
   }, [currentPageIndex]);
 
+  // State for word highlighting communication between components
+  const [highlightWord, setHighlightWord] = useState('');
+  
   // Start reading handler for the BookPage component
   const handleStartReading = () => {
     setIsReading(true);
@@ -149,6 +152,7 @@ export default function BookReader() {
           page={currentPage} 
           isReading={isReading}
           onStartReading={handleStartReading}
+          onWordHighlight={(word) => setHighlightWord(word)}
         />
         
         {/* Read-along panel that slides up from bottom */}
@@ -157,6 +161,11 @@ export default function BookReader() {
           page={currentPage}
           isReading={isReading}
           setIsReading={setIsReading}
+          onWordDetected={(word) => {
+            // When a word is detected in ReadAlong, tell BookPage to highlight it
+            setHighlightWord(word);
+            console.log(`Word detected in ReadAlong: ${word}`);
+          }}
         />
       </main>
       

@@ -21,9 +21,10 @@ interface ReadAlongProps {
   page: BookPage;
   isReading: boolean;
   setIsReading: (isReading: boolean) => void;
+  onWordDetected?: (word: string) => void; // Callback when a word is detected
 }
 
-export default function ReadAlong({ bookId, page, isReading, setIsReading }: ReadAlongProps) {
+export default function ReadAlong({ bookId, page, isReading, setIsReading, onWordDetected }: ReadAlongProps) {
   const { toast } = useToast();
   const [currentText, setCurrentText] = useState("");
   const audioVisRef = useRef<HTMLDivElement>(null);
@@ -179,8 +180,12 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       if (lastWordDetected && lastWordDetected.trim()) {
         console.log("Using lastWordDetected for highlighting:", lastWordDetected);
         
-        // Try to use the BookPage's exposed function
-        if (typeof highlightBookPageWord === 'function') {
+        // Try the callback prop for direct component communication
+        if (onWordDetected && typeof onWordDetected === 'function') {
+          onWordDetected(lastWordDetected);
+        }
+        // Fallback to the window global approach (legacy)
+        else if (typeof highlightBookPageWord === 'function') {
           highlightBookPageWord(lastWordDetected);
         }
       } 
@@ -192,8 +197,12 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
           if (lastInterimWord && lastInterimWord.length > 0) {
             console.log("Using interimTranscript for highlighting:", lastInterimWord);
             
-            // Try to use the BookPage's exposed function
-            if (typeof highlightBookPageWord === 'function') {
+            // Try the callback prop for direct component communication
+            if (onWordDetected && typeof onWordDetected === 'function') {
+              onWordDetected(lastInterimWord);
+            }
+            // Fallback to the window global approach (legacy)
+            else if (typeof highlightBookPageWord === 'function') {
               highlightBookPageWord(lastInterimWord);
             }
           }
@@ -207,8 +216,12 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
           if (lastWord && lastWord.length > 0) {
             console.log("Using transcript for highlighting:", lastWord);
             
-            // Try to use the BookPage's exposed function
-            if (typeof highlightBookPageWord === 'function') {
+            // Try the callback prop for direct component communication
+            if (onWordDetected && typeof onWordDetected === 'function') {
+              onWordDetected(lastWord);
+            }
+            // Fallback to the window global approach (legacy)
+            else if (typeof highlightBookPageWord === 'function') {
               highlightBookPageWord(lastWord);
             }
           }
