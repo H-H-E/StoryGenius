@@ -79,7 +79,7 @@ Each page must include:
 
 Story requirements:
 - Make sure the complexity matches the reading level "${data.reading_level}"
-- Break down each word into correct phonemes in ARPABET format
+- Break down each word into correct phonemes in ARPABET format (these are used for pronunciation analysis)
 - The story should be related to the theme: ${data.theme}
 ${charactersDescription}
 ${plotDescription}
@@ -154,7 +154,6 @@ Format as JSON with:
   ],
   "scores": {
     "accuracyPct": number (0-100),
-    "fryHitPct": number (0-100),
     "phonemeHitPct": number (0-100)
   }
 }

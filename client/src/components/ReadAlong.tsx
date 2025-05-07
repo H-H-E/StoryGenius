@@ -145,7 +145,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     onSuccess: (data) => {
       toast({
         title: "Reading Assessment",
-        description: `Accuracy: ${data.scores.accuracyPct}%, Fry Words: ${data.scores.fryHitPct}%, Phonemes: ${data.scores.phonemeHitPct}%`
+        description: `Accuracy: ${data.scores.accuracyPct}%, Phonemes: ${data.scores.phonemeHitPct}%`
       });
     },
     onError: (error) => {
@@ -294,18 +294,12 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
               Reading Assessment
             </h3>
             
-            <div className="grid grid-cols-3 gap-2 mb-3">
+            <div className="grid grid-cols-2 gap-2 mb-3">
               <div className="bg-white p-3 rounded-lg text-center">
                 <div className="text-2xl font-bold text-blue-600">
                   {assessReadingMutation.data.scores.accuracyPct}%
                 </div>
                 <div className="text-xs text-neutral-600">Accuracy</div>
-              </div>
-              <div className="bg-white p-3 rounded-lg text-center">
-                <div className="text-2xl font-bold text-purple-600">
-                  {assessReadingMutation.data.scores.fryHitPct}%
-                </div>
-                <div className="text-xs text-neutral-600">Fry Words</div>
               </div>
               <div className="bg-white p-3 rounded-lg text-center">
                 <div className="text-2xl font-bold text-green-600">

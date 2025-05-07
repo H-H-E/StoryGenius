@@ -58,7 +58,6 @@ export interface WordAnalysis {
 
 export interface AssessmentScores {
   accuracyPct: number;
-  fryHitPct: number;
   phonemeHitPct: number;
 }
 

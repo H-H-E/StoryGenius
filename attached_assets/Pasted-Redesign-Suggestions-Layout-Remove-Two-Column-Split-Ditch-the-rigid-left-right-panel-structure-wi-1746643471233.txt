@@ -1,0 +1,46 @@
+Redesign Suggestions:
+Layout:
+Remove Two-Column Split: Ditch the rigid left/right panel structure within the main white card. The image and the text + controls should feel more like the primary content areas side-by-side (on desktop/tablet) or stacked (on mobile).
+Single Content Flow: The image and text should be the main focus. Reading controls should be integrated near the text.
+Top Bar:
+Simplify: Keep the "Back to Library" (or just a back arrow <) and the Book Title ("A F-16 AI Strikes Story").
+Remove/Relocate Level: The "Level: Fry-1" can be removed from the main reading interface. This info is important for selection but less so during the immersive reading experience. It could be shown on the book listing page or a "Book Info" overlay if needed.
+Image Area (Left Side / Top on Mobile):
+Retain: Keep the image prominent.
+Style: Use softer rounded corners (rounded-2xl perhaps, instead of rounded-xl). Remove any extra padding/borders around it if they exist within its parent container. Let it fill its allocated space cleanly.
+Text Area (Right Side / Bottom on Mobile):
+Enlarge Text: Significantly increase the font size of "The jet flies back". Use a large, clear, readable font (like the font-body or font-display you have defined). Aim for something like text-4xl or text-5xl on larger screens.
+Remove Focus Boxes: Completely remove the "Learning Focus Words" and "Phoneme Focus" boxes from this main reading view.
+Alternative (Optional): If absolutely necessary, subtly indicate focus words directly within the main text (e.g., a light underline or slightly different color that doesn't interfere with reading flow) and hide phoneme info behind an optional "info" button. But for maximum similarity to the target UI, remove them entirely from this screen. This info is better placed on a pre-reading "preparation" screen or the dashboard.
+Read Along Controls:
+Remove Panel: Eliminate the "Read Along Practice" white box.
+Integrate Start/Stop: Replace the large purple "Start Reading" button and the accompanying text instructions.
+Suggestion: Use a single, circular Button with variant="ghost" or a very subtle variant="outline" placed near the text (e.g., bottom-right corner).
+Use only the Mic icon for "Start Reading" and toggle it to the Square icon for "Stop Reading". Make the icon larger (e.g., h-8 w-8).
+Audio Visualization: Keep the .audio-wave but position it near the new Mic/Stop button. Make sure its height doesn't disrupt the layout excessively.
+Navigation Arrows (Previous/Next Page):
+Relocate: Move the < and > buttons from flanking the image to flanking the entire content area (image + text).
+Style: Make them larger, circular, and give them a semi-transparent background on hover, similar to the target UI, so they overlay the content slightly without being too distracting. Use position: absolute or place them outside the main content flow.
+Implementation Steps (Conceptual):
+Modify [id].tsx Layout:
+Change the main div structure inside the bg-white card. Remove the flex-col md:flex-row splitting BookPage and ReadAlong.
+Create a new structure, perhaps a single flex container (flex flex-col lg:flex-row).
+Place the <img> tag (from BookPage) directly in the left/top part.
+Place the story text <span>s (rendered by ReadAlong now) in the right/bottom part.
+Place the integrated Mic/Stop button (ReadAlong) positioned relative to the text area.
+Place the Previous/Next page buttons outside this main content flex container, positioned absolutely or using a grid layout for the whole page.
+Modify BookPage.tsx:
+Remove the text rendering logic.
+Remove the "Focus Words" section.
+It might now only be responsible for rendering the <img> tag, potentially simplifying it significantly or merging its logic into [id].tsx.
+Modify ReadAlong.tsx:
+Take over rendering the main story text (words.map(...)). Apply large text classes.
+Remove the "Phoneme Focus" section.
+Remove the instructional text.
+Change the "Start/Stop" button to the smaller icon-only version.
+Position the button and audio wave appropriately (e.g., using absolute positioning).
+Modify Header.tsx (or create a book-specific header):
+Remove the "Level" display for the book reader view. Simplify other elements if desired.
+Modify index.css:
+Adjust the .word-highlight class to use a more prominent background (e.g., bg-blue-200 or bg-primary-100/50).
+Add styles for the new larger, potentially circular, previous/next page navigation buttons if needed.

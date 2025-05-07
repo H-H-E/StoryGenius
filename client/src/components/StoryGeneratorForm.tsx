@@ -32,7 +32,7 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const [selectedFryList, setSelectedFryList] = useState<string>(readingLevels.length > 0 ? readingLevels[0].id : "");
+  const [selectedReadingLevel, setSelectedReadingLevel] = useState<string>(readingLevels.length > 0 ? readingLevels[0].id : "");
   const [customTheme, setCustomTheme] = useState("");
   const [numPages, setNumPages] = useState(8);
   const [customTitle, setCustomTitle] = useState("");
@@ -75,17 +75,17 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedFryList || !customTheme.trim()) {
+    if (!selectedReadingLevel || !customTheme.trim()) {
       toast({
         title: "Missing information",
-        description: "Please select a word list and enter a story theme.",
+        description: "Please select a reading level and enter a story theme.",
         variant: "destructive"
       });
       return;
     }
     
     createStoryMutation.mutate({
-      readingLevel: selectedFryList,
+      readingLevel: selectedReadingLevel,
       theme: customTheme.trim(),
       numPages: numPages,
       customTitle: customTitle.trim() || undefined,
@@ -111,10 +111,10 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
     <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
-          {/* Fry Word List Selection */}
+          {/* Reading Level Selection */}
           <div>
             <div className="flex items-center mb-3">
-              <label className="block font-display font-semibold text-lg text-neutral-800">Fry Word List</label>
+              <label className="block font-display font-semibold text-lg text-neutral-800">Reading Level</label>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -123,8 +123,8 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-sm">
-                    <p className="text-sm">Fry words are common words that children should recognize to become fluent readers. 
-                    Selecting a Fry word list will include those words in the generated story.</p>
+                    <p className="text-sm">Choose the reading level that matches your child's reading ability. 
+                    This helps generate a story with appropriate vocabulary and sentence complexity.</p>
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -135,14 +135,14 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
                   key={level.id}
                   type="button"
                   className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-colors ${
-                    selectedFryList === level.id
+                    selectedReadingLevel === level.id
                       ? "border-primary-600 bg-primary-50 hover:bg-primary-100"
                       : "border-neutral-200 hover:bg-neutral-50"
                   }`}
-                  onClick={() => setSelectedFryList(level.id)}
+                  onClick={() => setSelectedReadingLevel(level.id)}
                 >
                   <span className={`font-display font-bold text-2xl ${
-                    selectedFryList === level.id ? "text-primary-600" : "text-neutral-700"
+                    selectedReadingLevel === level.id ? "text-primary-600" : "text-neutral-700"
                   }`}>
                     {level.label}
                   </span>
