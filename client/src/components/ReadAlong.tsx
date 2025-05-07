@@ -19,10 +19,10 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   const [currentText, setCurrentText] = useState("");
   const audioVisRef = useRef<HTMLDivElement>(null);
   
-  // Extract words either from the words array or fall back to text
-  const words = page.words?.length ? 
-    page.words.map(word => word.text) : 
-    (page.text?.split(/\s+/).filter(word => word.length > 0) || []);
+  // Extract words either from the words array or fall back to text, with safety checks
+  const words = page?.words?.length ? 
+    page.words.map(word => word?.text || "").filter(word => word.length > 0) : 
+    (page?.text ? page.text.split(/\s+/).filter(word => word.length > 0) : []);
   
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   
@@ -72,32 +72,50 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     };
   }, [isReading]);
 
-  // Update word highlight based on transcript
+  // Update word highlight based on transcript - with enhanced safety checks
   useEffect(() => {
-    if (transcript) {
+    if (!transcript || !transcript.trim()) return;
+    
+    try {
       setCurrentText(transcript);
       
-      // Extract words from either the words array or fallback to text
-      const pageWords = page.words?.length ? 
-        page.words.map(word => word.text.toLowerCase()) : 
-        (page.text?.toLowerCase().split(/\s+/) || []);
+      // Extract words from either the words array or fallback to text with safety checks
+      const pageWords = page?.words?.length ? 
+        page.words.map(word => (word?.text || "").toLowerCase()).filter(w => w.length > 0) : 
+        (page?.text ? page.text.toLowerCase().split(/\s+/).filter(w => w.length > 0) : []);
       
-      const transcriptWords = transcript.toLowerCase().split(/\s+/);
+      if (pageWords.length === 0) return; // No words to match against
+      
+      const transcriptWords = transcript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
       
       // Find the last recognized word
       if (transcriptWords.length > 0) {
         const lastWord = transcriptWords[transcriptWords.length - 1];
-        // Find this word in the original text
-        const index = pageWords.findIndex(w => 
-          w.replace(/[.,!?;:"']/g, '').toLowerCase() === lastWord.replace(/[.,!?;:"']/g, '')
-        );
         
-        if (index !== -1) {
-          setCurrentWordIndex(index);
+        // Additional safety - make sure lastWord is valid
+        if (!lastWord || lastWord.length === 0) return;
+        
+        // Try to find the word in the page text with safe string operations
+        try {
+          // Find this word in the original text
+          const index = pageWords.findIndex(w => {
+            if (!w) return false;
+            const cleanPageWord = w.replace(/[.,!?;:"']/g, '').toLowerCase();
+            const cleanTranscriptWord = lastWord.replace(/[.,!?;:"']/g, '').toLowerCase();
+            return cleanPageWord === cleanTranscriptWord;
+          });
+          
+          if (index !== -1) {
+            setCurrentWordIndex(index);
+          }
+        } catch (wordError) {
+          console.error("Error during word comparison:", wordError);
         }
       }
+    } catch (error) {
+      console.error("Error processing transcript:", error);
     }
-  }, [transcript, page.words, page.text]);
+  }, [transcript, page?.words, page?.text]);
 
   const assessReadingMutation = useMutation({
     mutationFn: async (data: ReadingEvent) => {
@@ -120,36 +138,58 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   });
 
   const toggleReading = async () => {
-    if (isReading) {
-      setIsReading(false);
-      setCurrentWordIndex(-1);
-      
-      if (isSpeechRecognitionSupported) {
-        stopListening();
+    try {
+      if (isReading) {
+        setIsReading(false);
+        setCurrentWordIndex(-1);
         
-        // Submit the reading for assessment
-        if (currentText) {
-          await assessReadingMutation.mutateAsync({
-            bookId,
-            pageNumber: page.pageNumber,
-            expected: page.text || words.join(' '),
-            actual: currentText
+        if (isSpeechRecognitionSupported) {
+          stopListening();
+          
+          // Submit the reading for assessment - with additional safety checks
+          if (currentText && currentText.trim()) {
+            try {
+              // Ensure we have valid page data
+              const pageNumber = page?.pageNumber || 1;
+              const expectedText = page?.text || words.join(' ') || ""; 
+              
+              if (expectedText.trim()) {
+                await assessReadingMutation.mutateAsync({
+                  bookId,
+                  pageNumber,
+                  expected: expectedText,
+                  actual: currentText
+                });
+              }
+            } catch (assessError) {
+              console.error("Error submitting reading assessment:", assessError);
+              toast({
+                title: "Assessment Error",
+                description: "There was a problem analyzing your reading.",
+                variant: "destructive"
+              });
+            }
+          }
+        }
+      } else {
+        setCurrentText("");
+        setIsReading(true);
+        
+        if (isSpeechRecognitionSupported) {
+          startListening();
+        } else {
+          toast({
+            title: "Speech Recognition Not Supported",
+            description: "Your browser doesn't support speech recognition. Try Chrome or Edge.",
+            variant: "destructive"
           });
         }
       }
-    } else {
-      setCurrentText("");
-      setIsReading(true);
-      
-      if (isSpeechRecognitionSupported) {
-        startListening();
-      } else {
-        toast({
-          title: "Speech Recognition Not Supported",
-          description: "Your browser doesn't support speech recognition. Try Chrome or Edge.",
-          variant: "destructive"
-        });
-      }
+    } catch (error) {
+      console.error("Error toggling reading state:", error);
+      // Reset to a safe state
+      setIsReading(false);
+      stopListening();
     }
   };
 
@@ -246,21 +286,46 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
           </div>
         )}
         
-        {/* Focus phonemes section */}
+        {/* Focus phonemes section - with improved error handling */}
         <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mt-auto">
           <h3 className="font-medium text-indigo-800 mb-2">Phoneme Focus:</h3>
           <div className="flex flex-wrap gap-2">
-            {Array.from(new Set((page.words || []).flatMap(word => word.phonemes || []))).map((phoneme) => (
-              <span 
-                key={phoneme} 
-                className="px-3 py-1.5 bg-white text-indigo-700 rounded-full text-sm font-medium border border-indigo-200 shadow-sm"
-              >
-                {phoneme}
-              </span>
-            ))}
-            {!page.words?.some(word => word.phonemes?.length) && (
-              <span className="text-sm text-indigo-500 italic">No phoneme data available</span>
-            )}
+            {(() => {
+              try {
+                // Safe extraction of unique phonemes with multiple checks
+                const words = page?.words || [];
+                if (!words.length) return <span className="text-sm text-indigo-500 italic">No phoneme data available</span>;
+                
+                const phonemes: string[] = [];
+                
+                // More careful extraction of phonemes with validation
+                for (const word of words) {
+                  if (word && word.phonemes && Array.isArray(word.phonemes)) {
+                    for (const phoneme of word.phonemes) {
+                      if (phoneme && typeof phoneme === 'string' && phoneme.trim() && !phonemes.includes(phoneme)) {
+                        phonemes.push(phoneme);
+                      }
+                    }
+                  }
+                }
+                
+                if (!phonemes.length) {
+                  return <span className="text-sm text-indigo-500 italic">No phoneme data available</span>;
+                }
+                
+                return phonemes.map((phoneme) => (
+                  <span 
+                    key={phoneme} 
+                    className="px-3 py-1.5 bg-white text-indigo-700 rounded-full text-sm font-medium border border-indigo-200 shadow-sm"
+                  >
+                    {phoneme}
+                  </span>
+                ));
+              } catch (error) {
+                console.error("Error displaying phonemes:", error);
+                return <span className="text-sm text-indigo-500 italic">Error displaying phonemes</span>;
+              }
+            })()}
           </div>
         </div>
       </div>
