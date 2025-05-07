@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Mic, Square } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { highlightWord } from "@/lib/word-highlighting";
 
 interface ReadAlongProps {
   bookId: number;
@@ -18,6 +19,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   const { toast } = useToast();
   const [currentText, setCurrentText] = useState("");
   const audioVisRef = useRef<HTMLDivElement>(null);
+  const [confidenceLevel, setConfidenceLevel] = useState(0);
   
   // Extract words either from the words array or fall back to text, with safety checks
   const words = page?.words?.length ? 
@@ -30,6 +32,9 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     startListening,
     stopListening,
     transcript,
+    interimTranscript,
+    lastWordDetected,
+    confidence,
     isListening,
     isSpeechRecognitionSupported 
   } = useSpeechRecognition();
@@ -51,14 +56,16 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       container.appendChild(bar);
     }
     
-    // Animate bars
+    // Animate bars - scale animation with confidence if we have it
     let animationFrame: number;
     const animateBars = () => {
       if (!isReading) return;
       
       const bars = container.querySelectorAll('.audio-bar');
       bars.forEach(bar => {
-        const height = Math.floor(Math.random() * 30) + 5;
+        // Use confidence to affect height variability - more confidence = taller bars
+        const confidenceBoost = confidenceLevel * 15; // Scale up the effect
+        const height = Math.floor(Math.random() * (20 + confidenceBoost)) + 5;
         (bar as HTMLElement).style.height = `${height}px`;
       });
       
@@ -70,15 +77,21 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     return () => {
       cancelAnimationFrame(animationFrame);
     };
-  }, [isReading]);
+  }, [isReading, confidenceLevel]);
 
-  // Update word highlight based on transcript - with enhanced safety checks
+  // Update word highlight based on both transcript and interim transcript
   useEffect(() => {
-    if (!transcript || !transcript.trim()) return;
+    // Track final transcript for submission
+    if (transcript && transcript.trim()) {
+      setCurrentText(transcript);
+    }
+    
+    // Store confidence level for visualization
+    if (confidence > 0) {
+      setConfidenceLevel(confidence);
+    }
     
     try {
-      setCurrentText(transcript);
-      
       // Extract words from either the words array or fallback to text with safety checks
       const pageWords = page?.words?.length ? 
         page.words.map(word => (word?.text || "").toLowerCase()).filter(w => w.length > 0) : 
@@ -86,36 +99,43 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       
       if (pageWords.length === 0) return; // No words to match against
       
-      const transcriptWords = transcript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
-      
-      // Find the last recognized word
-      if (transcriptWords.length > 0) {
-        const lastWord = transcriptWords[transcriptWords.length - 1];
-        
-        // Additional safety - make sure lastWord is valid
-        if (!lastWord || lastWord.length === 0) return;
-        
-        // Try to find the word in the page text with safe string operations
-        try {
-          // Find this word in the original text
-          const index = pageWords.findIndex(w => {
-            if (!w) return false;
-            const cleanPageWord = w.replace(/[.,!?;:"']/g, '').toLowerCase();
-            const cleanTranscriptWord = lastWord.replace(/[.,!?;:"']/g, '').toLowerCase();
-            return cleanPageWord === cleanTranscriptWord;
-          });
-          
-          if (index !== -1) {
-            setCurrentWordIndex(index);
+      // First priority - use lastWordDetected for real-time highlighting
+      if (lastWordDetected && lastWordDetected.trim()) {
+        const index = highlightWord(pageWords, lastWordDetected);
+        if (index !== -1) {
+          setCurrentWordIndex(index);
+        }
+      } 
+      // If no lastWordDetected but we have interim transcript, use that
+      else if (interimTranscript && interimTranscript.trim()) {
+        const interimWords = interimTranscript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        if (interimWords.length > 0) {
+          const lastInterimWord = interimWords[interimWords.length - 1];
+          if (lastInterimWord && lastInterimWord.length > 0) {
+            const index = highlightWord(pageWords, lastInterimWord);
+            if (index !== -1) {
+              setCurrentWordIndex(index);
+            }
           }
-        } catch (wordError) {
-          console.error("Error during word comparison:", wordError);
+        }
+      }
+      // Fallback - use final transcript if no interim data available
+      else if (transcript && transcript.trim()) {
+        const transcriptWords = transcript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        if (transcriptWords.length > 0) {
+          const lastWord = transcriptWords[transcriptWords.length - 1];
+          if (lastWord && lastWord.length > 0) {
+            const index = highlightWord(pageWords, lastWord);
+            if (index !== -1) {
+              setCurrentWordIndex(index);
+            }
+          }
         }
       }
     } catch (error) {
-      console.error("Error processing transcript:", error);
+      console.error("Error processing speech for highlighting:", error);
     }
-  }, [transcript, page?.words, page?.text]);
+  }, [transcript, interimTranscript, lastWordDetected, confidence, page?.words, page?.text]);
 
   const assessReadingMutation = useMutation({
     mutationFn: async (data: ReadingEvent) => {
@@ -229,10 +249,23 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
             )}
           </div>
           
-          {isReading && currentText && (
+          {isReading && (
             <div className="bg-neutral-50 rounded-lg p-3 mb-3 text-sm text-neutral-600">
               <p className="font-medium text-neutral-800 mb-1">I heard you say:</p>
-              <p className="italic">{currentText}</p>
+              {currentText && (
+                <p className="italic mb-1">{currentText}</p>
+              )}
+              {interimTranscript && (
+                <div>
+                  <p className="text-xs text-primary-500 font-medium mt-2">Currently hearing:</p>
+                  <p className="italic text-primary-700">{interimTranscript}</p>
+                  {lastWordDetected && (
+                    <div className="mt-1 inline-block bg-primary-100 text-primary-800 text-xs font-medium px-2 py-1 rounded">
+                      Current word: {lastWordDetected}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
           

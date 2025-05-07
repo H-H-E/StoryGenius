@@ -2,6 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 interface SpeechRecognitionHook {
   transcript: string;
+  interimTranscript: string;
+  lastWordDetected: string;
+  confidence: number;
   isListening: boolean;
   isSpeechRecognitionSupported: boolean;
   startListening: () => void;
@@ -24,6 +27,9 @@ declare global {
 
 export function useSpeechRecognition(): SpeechRecognitionHook {
   const [transcript, setTranscript] = useState('');
+  const [interimTranscript, setInterimTranscript] = useState('');
+  const [lastWordDetected, setLastWordDetected] = useState('');
+  const [confidence, setConfidence] = useState(0);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,6 +62,18 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     }
   }, []);
   
+  // Extract the last word from a transcript
+  const extractLastWord = useCallback((text: string): string => {
+    if (!text) return '';
+    
+    // Clean the text and split by whitespace
+    const cleanedText = text.trim();
+    const words = cleanedText.split(/\s+/);
+    
+    // Return the last word or empty string if no words
+    return words.length > 0 ? words[words.length - 1] : '';
+  }, []);
+  
   const startListening = useCallback(() => {
     if (!isSpeechRecognitionSupported()) {
       setError("Speech recognition not supported in this browser");
@@ -84,21 +102,47 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
           if (!event || !event.results) return;
           
           let finalTranscript = '';
+          let currentInterimTranscript = '';
+          let currentConfidence = 0;
           
           for (let i = event.resultIndex; i < event.results.length; i++) {
-            if (event.results[i] && event.results[i][0] && event.results[i][0].transcript) {
-              const transcriptSegment = event.results[i][0].transcript;
+            if (event.results[i] && event.results[i][0]) {
+              const transcriptSegment = event.results[i][0].transcript || '';
+              // Track confidence of the latest result
+              const resultConfidence = event.results[i][0].confidence || 0;
+              
+              if (i === event.results.length - 1) {
+                currentConfidence = resultConfidence;
+              }
+              
               if (event.results[i].isFinal) {
-                finalTranscript += transcriptSegment;
+                finalTranscript += ' ' + transcriptSegment;
+              } else {
+                currentInterimTranscript += ' ' + transcriptSegment;
               }
             }
           }
           
+          // Update confidence
+          setConfidence(currentConfidence);
+          
+          // Only update last word if we have interim results
+          if (currentInterimTranscript) {
+            const lastWord = extractLastWord(currentInterimTranscript);
+            if (lastWord) {
+              setLastWordDetected(lastWord);
+            }
+            setInterimTranscript(currentInterimTranscript.trim());
+          }
+          
+          // Update final transcript if we have final results
           if (finalTranscript) {
             setTranscript(prev => {
               const updatedTranscript = prev ? `${prev} ${finalTranscript}` : finalTranscript;
               return updatedTranscript.trim();
             });
+            // Clear interim transcript when we get a final result
+            setInterimTranscript('');
           }
         } catch (resultError) {
           console.error('Error processing speech results:', resultError);
@@ -136,7 +180,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       setError("Failed to start speech recognition");
       setIsListening(false);
     }
-  }, [isSpeechRecognitionSupported, isListening, cleanupRecognition]);
+  }, [isSpeechRecognitionSupported, isListening, cleanupRecognition, extractLastWord]);
   
   const stopListening = useCallback(() => {
     try {
@@ -147,11 +191,16 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       console.error('Error stopping speech recognition:', error);
     } finally {
       setIsListening(false);
+      // Clear any interim results when we stop
+      setInterimTranscript('');
     }
   }, []);
   
   const resetTranscript = useCallback(() => {
     setTranscript('');
+    setInterimTranscript('');
+    setLastWordDetected('');
+    setConfidence(0);
   }, []);
   
   // Cleanup on unmount
@@ -163,6 +212,9 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   
   return {
     transcript,
+    interimTranscript,
+    lastWordDetected,
+    confidence,
     isListening,
     isSpeechRecognitionSupported: isSpeechRecognitionSupported(),
     startListening,

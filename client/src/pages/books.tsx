@@ -251,9 +251,11 @@ function BookCard({ book }: { book: Book }) {
     <Card className="overflow-hidden hover:shadow-lg transition-shadow">
       <CardHeader>
         <CardTitle className="line-clamp-1">{book.title}</CardTitle>
-        <CardDescription className="flex gap-2">
-          <Badge variant="outline">{book.readingLevel}</Badge>
-          <Badge variant="outline">{book.theme}</Badge>
+        <CardDescription>
+          <div className="flex gap-2 mt-1">
+            <Badge variant="outline">{book.readingLevel}</Badge>
+            <Badge variant="outline">{book.theme}</Badge>
+          </div>
         </CardDescription>
       </CardHeader>
       <CardContent>

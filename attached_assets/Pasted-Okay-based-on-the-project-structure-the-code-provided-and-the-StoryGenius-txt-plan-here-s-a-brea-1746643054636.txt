@@ -1,0 +1,139 @@
+Okay, based on the project structure, the code provided, and the StoryGenius.txt plan, here's a breakdown of incomplete items prioritized for core functionality, followed by specific UI/UX fixes and improvements.
+
+I. Incomplete Core Functionality (Prioritized List)
+
+This list focuses on getting the main features working as described in StoryGenius.txt.
+
+Implement Backend API Service Logic (Highest Priority):
+
+File: server/services/gemini.ts
+
+Task: Implement the actual fetch calls to the Google Generative Language API for both storybook and assessment types, using the schemas defined in StoryGenius.txt. Handle API key loading (process.env.GEMINI_API_KEY), request body construction, response parsing (extracting from candidates[0].content.parts[0].text), and error handling.
+
+File: server/services/replicate.ts
+
+Task: Implement the two-stage image generation process: 1) POST to initiate the prediction, 2) Poll the GET endpoint using the prediction ID until success or failure. Handle API key loading (process.env.REPLICATE_API_TOKEN), request/response logic, and error/timeout handling. Consider basic sequential processing per request to avoid rate limits initially.
+
+Implement Backend Route Logic (High Priority):
+
+File: server/routes.ts
+
+Task (POST /api/books/new): Wire up the service calls.
+
+Call callGemini (type: "storybook").
+
+After getting the blueprint, loop through bookContent.pages.
+
+Inside the loop, call generateImage for each page's imagePrompt.
+
+After all images are generated (using Promise.all on the image generation calls), save the book (storage.createBook) and then save all pages with their imageUrls (storage.createBookPage).
+
+Return the created book ID/object.
+
+Task (POST /api/reading-event):
+
+Call the implemented callGemini (type: "assessment").
+
+Ensure the analysis object returned by Gemini is correctly passed to storage.createReadingEvent and storage.updateUserProgress.
+
+Implement Authentication (High Priority - for multi-user):
+
+Files: server/index.ts, server/routes.ts, new files (e.g., server/auth.ts, server/middleware/auth.ts).
+
+Task: Set up express-session with connect-pg-simple. Configure Passport.js with passport-local. Create signup and login routes (/api/auth/signup, /api/auth/login, /api/auth/logout). Implement password hashing (e.g., using bcrypt). Add authentication middleware to protected routes (e.g., /api/books, /api/user/progress, /api/reading-event). Modify storage.ts functions to accept and use userId instead of defaulting to 1.
+
+Implement Real-time Word Highlighting (Medium-High Priority):
+
+File: client/src/hooks/use-speech-recognition.tsx
+
+Task: Modify the hook to properly handle and expose interimResults. The onresult handler needs to build the transcript using both final and interim results as they come in. Provide a way to get the latest interim transcript fragment.
+
+File: client/src/components/ReadAlong.tsx
+
+Task: Consume the interimTranscript from the hook. Implement logic (potentially using diff-match-patch or a simpler word-matching algorithm) to compare the stream of recognized words against the page.text words array. Update the currentWordIndex frequently during speech to provide real-time feedback, not just on the final transcript.
+
+Create "My Books" Page (Medium Priority):
+
+Files: Create client/src/pages/books.tsx, update client/src/App.tsx.
+
+Task: Create a new page component that fetches data from /api/books (ensure this endpoint returns books for the logged-in user once auth is done). Display all books, perhaps using a similar card layout as RecentBooks, but showing all of them (potentially with pagination if needed). Update the router in App.tsx to include this route. Make the "My Books" link in Header.tsx functional.
+
+Refine Progress Calculation Logic (Medium Priority):
+
+File: server/storage.ts
+
+Task (updateUserProgress): Implement a proper lookup for Fry words/lists instead of defaulting to "Fry-1". Refine the "mastery" condition (e.g., mastered >= 3 might be okay, but consider edge cases or alternative logic).
+
+Task (getUserProgress): Make totalCount for Fry lists accurate (fetch from a constant or DB if lists are stored). Replace hardcoded notes and suggestion in recentSession with logic based on the actual assessment data from Gemini or derived patterns.
+
+II. UI/UX Fixes and Improvements (High to Medium Priority)
+
+Story Generation Feedback (High Priority):
+
+File: client/src/components/StoryGeneratorForm.tsx
+
+Fix: The current "Generating..." spinner is generic.
+
+Improvement:
+
+Show more specific feedback during the multi-step process (e.g., "Generating story text...", "Generating page 1 image...", "Generating page 2 image..."). This requires the backend to potentially stream status updates or the frontend to poll an endpoint, which is more complex. A simpler start is a better spinner and ensuring the button stays disabled.
+
+Disable the entire form, not just the button, during mutation (createStoryMutation.isPending).
+
+Handle errors gracefully with specific toast messages.
+
+Reading Highlight Accuracy & Feel (High Priority):
+
+File: client/src/components/ReadAlong.tsx, client/src/index.css
+
+Fix: Implement the real-time highlighting based on interim speech results (see point 4 in Incomplete list).
+
+Improvement:
+
+Refine the visual appearance of the .word-highlight (e.g., smoother animation, different background/underline style).
+
+Consider highlighting the next expected word slightly differently if the user pauses.
+
+Provide clearer visual feedback if the speech recognitionConfidence is low.
+
+Dashboard Enhancements (Medium-High Priority):
+
+File: client/src/pages/dashboard.tsx
+
+Fix: The notes and suggestion in the "Recent Reading Analysis" section are currently hardcoded in storage.ts. These should ideally be populated from the Gemini assessment data or derived dynamically.
+
+Improvement:
+
+Use the included recharts library to add charts visualizing progress (e.g., accuracy over time, Fry words mastered per level).
+
+Make the Phoneme Mastery section more visual (e.g., a grid, color-coded icons).
+
+Provide more actionable feedback based on wordsToLearn and phonemes needing practice.
+
+Add loading skeletons specifically for the chart areas while data loads.
+
+Loading & Error States (Medium Priority):
+
+Files: Various components (BookReader.tsx, Dashboard.tsx, Home.tsx).
+
+Fix: While some skeletons exist, ensure all data fetching (useQuery, useMutation) has appropriate loading states (spinners, skeletons) and error states (user-friendly toast messages or inline alerts). Check the assessReadingMutation in ReadAlong.tsx for visual feedback during the assessment API call.
+
+Read-Along Instructions/Onboarding (Medium Priority):
+
+File: client/src/components/ReadAlong.tsx
+
+Improvement: Add a small, clear instruction tooltip or text near the "Start Reading" button explaining how the feature works (e.g., "Click Start, then read the text aloud. Words will highlight as you go!").
+
+Visual Polish & Consistency (Medium Priority):
+
+Files: Across the application (index.css, various components).
+
+Improvement: Ensure consistent use of spacing, typography, and colors. Review the design for child-friendliness – consider slightly larger fonts, more engaging colors or subtle animations where appropriate without being distracting. Ensure the mobile layout is clean and usable, especially the BookReader split view.
+
+Accessibility (Medium Priority):
+
+Files: Across the application.
+
+Improvement: Audit keyboard navigation, focus states (ensure they are visible), ARIA attributes for custom components (like theme/level selectors), and color contrast. Ensure images have meaningful alt text.
+
+By tackling the "Incomplete Core Functionality" first, you'll get the application working end-to-end. Then, addressing the UI/UX fixes will significantly enhance the user experience, particularly the real-time highlighting and feedback mechanisms.
