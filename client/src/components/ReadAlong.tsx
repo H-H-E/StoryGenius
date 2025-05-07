@@ -154,68 +154,112 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   };
 
   return (
-    <div className="w-full md:w-1/2 p-6 flex flex-col">
-      <div className="flex-grow">
-        <div className="font-body text-xl leading-relaxed text-neutral-800 mb-8 hidden md:block">
-          {words.map((word, index) => (
-            <span 
-              key={index}
-              className={index === currentWordIndex ? "word-highlight" : ""}
-            >
-              {word}{' '}
-            </span>
-          ))}
-        </div>
-        
-        <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 mb-4 hidden md:block">
-          <div className="text-sm text-neutral-500 mb-1">Focus Words:</div>
-          <div className="flex flex-wrap gap-2">
-            {(page.fryWords || []).map((word) => (
-              <span 
-                key={word} 
-                className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
-              >
-                {word}
-              </span>
-            ))}
-          </div>
-        </div>
-      </div>
-      
-      <div className="border-t border-neutral-200 pt-4 mt-auto">
-        <div className="flex flex-col space-y-4">
-          <div className="flex items-center justify-between">
+    <div className="w-full md:w-1/2 p-6 md:p-8 flex flex-col bg-gradient-to-b from-blue-50 to-purple-50 border-l border-neutral-200">
+      <div className="flex-grow flex flex-col">
+        {/* Reading control panel */}
+        <div className="bg-white rounded-xl shadow-sm p-5 mb-6">
+          <h3 className="font-display font-bold text-lg text-neutral-800 mb-4">Read Along Practice</h3>
+          
+          <div className="flex items-center justify-between gap-4 mb-3">
             <Button
               variant={isReading ? "destructive" : "default"}
               onClick={toggleReading}
-              className="flex items-center"
+              className={`flex-1 flex items-center justify-center py-6 ${isReading ? 'animate-pulse' : ''}`}
               disabled={assessReadingMutation.isPending}
+              size="lg"
             >
               {isReading ? (
                 <>
-                  <Square className="mr-2 h-4 w-4" />
-                  <span>Stop Reading</span>
+                  <Square className="mr-2 h-5 w-5" />
+                  <span className="font-medium">Stop Reading</span>
                 </>
               ) : (
                 <>
-                  <Mic className="mr-2 h-4 w-4" />
-                  <span>Start Reading</span>
+                  <Mic className="mr-2 h-5 w-5" />
+                  <span className="font-medium">Start Reading</span>
                 </>
               )}
             </Button>
             
-            <div 
-              ref={audioVisRef} 
-              className="audio-wave"
-              style={{ display: isReading ? 'flex' : 'none' }}
-            ></div>
+            {isReading && (
+              <div 
+                ref={audioVisRef} 
+                className="audio-wave bg-primary-50 px-3 py-2 rounded-lg h-12 w-20"
+              ></div>
+            )}
           </div>
           
-          <div className="text-xs text-neutral-500 italic">
+          {isReading && currentText && (
+            <div className="bg-neutral-50 rounded-lg p-3 mb-3 text-sm text-neutral-600">
+              <p className="font-medium text-neutral-800 mb-1">I heard you say:</p>
+              <p className="italic">{currentText}</p>
+            </div>
+          )}
+          
+          <div className="text-sm text-neutral-600">
             {isSpeechRecognitionSupported ? (
-              <>Click "Start Reading" and read the story aloud. The app will highlight words as you read them.</>
+              <>
+                <p className="mb-1">Click "Start Reading" and read the text aloud at your own pace.</p>
+                <p className="text-xs text-neutral-500">The app will highlight words as you read them and analyze your pronunciation.</p>
+              </>
             ) : (
-              <>Speech recognition is not supported in your browser. Please use Chrome or Edge for the best experience.</>
+              <div className="bg-red-50 text-red-700 p-3 rounded-lg">
+                <p className="font-medium">Speech recognition not supported!</p>
+                <p className="text-xs mt-1">Please use Chrome or Edge browser for the best experience.</p>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Reading progress tracker - shown when reading completes */}
+        {assessReadingMutation.data && !isReading && (
+          <div className="bg-green-50 border border-green-100 rounded-xl p-5 mb-6">
+            <h3 className="font-display font-bold text-green-800 flex items-center mb-3">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              Reading Assessment
+            </h3>
+            
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className="bg-white p-3 rounded-lg text-center">
+                <div className="text-2xl font-bold text-blue-600">
+                  {assessReadingMutation.data.scores.accuracyPct}%
+                </div>
+                <div className="text-xs text-neutral-600">Accuracy</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  {assessReadingMutation.data.scores.fryHitPct}%
+                </div>
+                <div className="text-xs text-neutral-600">Fry Words</div>
+              </div>
+              <div className="bg-white p-3 rounded-lg text-center">
+                <div className="text-2xl font-bold text-green-600">
+                  {assessReadingMutation.data.scores.phonemeHitPct}%
+                </div>
+                <div className="text-xs text-neutral-600">Phonemes</div>
+              </div>
+            </div>
+            
+            <p className="text-sm text-green-600">Great job! Keep practicing to improve your reading skills.</p>
+          </div>
+        )}
+        
+        {/* Focus phonemes section */}
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-5 mt-auto">
+          <h3 className="font-medium text-indigo-800 mb-2">Phoneme Focus:</h3>
+          <div className="flex flex-wrap gap-2">
+            {Array.from(new Set((page.words || []).flatMap(word => word.phonemes || []))).map((phoneme) => (
+              <span 
+                key={phoneme} 
+                className="px-3 py-1.5 bg-white text-indigo-700 rounded-full text-sm font-medium border border-indigo-200 shadow-sm"
+              >
+                {phoneme}
+              </span>
+            ))}
+            {!page.words?.some(word => word.phonemes?.length) && (
+              <span className="text-sm text-indigo-500 italic">No phoneme data available</span>
             )}
           </div>
         </div>
