@@ -146,18 +146,16 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     }
     
     try {
-      // Extract words from either the words array or fallback to text with safety checks
-      const pageWords = page?.words?.length ? 
-        page.words.map(word => (word?.text || "").toLowerCase()).filter(w => w.length > 0) : 
-        (page?.text ? page.text.toLowerCase().split(/\s+/).filter(w => w.length > 0) : []);
-      
-      if (pageWords.length === 0) return; // No words to match against
+      // First try to use the window function for highlighting (exposed by BookPage component)
+      const highlightBookPageWord = (window as any).highlightBookPageWord;
       
       // First priority - use lastWordDetected for real-time highlighting
       if (lastWordDetected && lastWordDetected.trim()) {
-        const index = highlightWord(pageWords, lastWordDetected);
-        if (index !== -1) {
-          setCurrentWordIndex(index);
+        console.log("Using lastWordDetected for highlighting:", lastWordDetected);
+        
+        // Try to use the BookPage's exposed function
+        if (typeof highlightBookPageWord === 'function') {
+          highlightBookPageWord(lastWordDetected);
         }
       } 
       // If no lastWordDetected but we have interim transcript, use that
@@ -166,9 +164,11 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
         if (interimWords.length > 0) {
           const lastInterimWord = interimWords[interimWords.length - 1];
           if (lastInterimWord && lastInterimWord.length > 0) {
-            const index = highlightWord(pageWords, lastInterimWord);
-            if (index !== -1) {
-              setCurrentWordIndex(index);
+            console.log("Using interimTranscript for highlighting:", lastInterimWord);
+            
+            // Try to use the BookPage's exposed function
+            if (typeof highlightBookPageWord === 'function') {
+              highlightBookPageWord(lastInterimWord);
             }
           }
         }
@@ -179,9 +179,11 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
         if (transcriptWords.length > 0) {
           const lastWord = transcriptWords[transcriptWords.length - 1];
           if (lastWord && lastWord.length > 0) {
-            const index = highlightWord(pageWords, lastWord);
-            if (index !== -1) {
-              setCurrentWordIndex(index);
+            console.log("Using transcript for highlighting:", lastWord);
+            
+            // Try to use the BookPage's exposed function
+            if (typeof highlightBookPageWord === 'function') {
+              highlightBookPageWord(lastWord);
             }
           }
         }
@@ -189,7 +191,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     } catch (error) {
       console.error("Error processing speech for highlighting:", error);
     }
-  }, [transcript, interimTranscript, lastWordDetected, confidence, page?.words, page?.text]);
+  }, [transcript, interimTranscript, lastWordDetected, confidence]);
 
   const assessReadingMutation = useMutation({
     mutationFn: async (data: ReadingEvent) => {
@@ -235,8 +237,16 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     // Set reading mode and start listening
     setIsReading(true);
     
+    // Add debug to check support
+    console.log("Speech recognition supported:", isSpeechRecognitionSupported);
+    
     if (isSpeechRecognitionSupported) {
-      startListening();
+      console.log("Starting speech recognition...");
+      
+      // Use setTimeout to ensure state is updated first
+      setTimeout(() => {
+        startListening();
+      }, 100);
     } else {
       toast({
         title: "Speech Recognition Not Supported",

@@ -72,11 +72,22 @@ export default function BookPage({ page, isReading, onStartReading }: BookPagePr
       const index = highlightWord(words, word);
       if (index >= 0) {
         setCurrentWordIndex(index);
+        
+        // Log successful highlighting
+        console.log(`Highlighting word: ${word} at index ${index}`);
+      } else {
+        console.log(`Could not find match for word: ${word}`);
       }
     } catch (error) {
       console.error("Error highlighting recognized word:", error);
     }
   };
+  
+  // Add a way for external components to access this function
+  useEffect(() => {
+    // Expose the highlight function to the window for component communication
+    (window as any).highlightBookPageWord = highlightRecognizedWord;
+  }, []);
 
   return (
     <div className="w-full p-4 md:p-6 lg:p-8 mx-auto max-w-4xl">
