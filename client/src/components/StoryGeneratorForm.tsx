@@ -12,8 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { StoryGenerationRequest, Theme, ReadingLevel } from "@/types";
-import { Wand2, Minus, Plus } from "lucide-react";
+import { Wand2, Minus, Plus, Info } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface StoryGeneratorFormProps {
@@ -26,8 +32,8 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
-  const [selectedReadingLevel, setSelectedReadingLevel] = useState<string>(readingLevels.length > 0 ? readingLevels[0].id : "");
-  const [selectedTheme, setSelectedTheme] = useState<string>(themes.length > 0 ? themes[0].id : "");
+  const [selectedFryList, setSelectedFryList] = useState<string>(readingLevels.length > 0 ? readingLevels[0].id : "");
+  const [customTheme, setCustomTheme] = useState("");
   const [numPages, setNumPages] = useState(8);
   const [customTitle, setCustomTitle] = useState("");
   const [mainCharacters, setMainCharacters] = useState("");
@@ -69,18 +75,18 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!selectedReadingLevel || !selectedTheme) {
+    if (!selectedFryList || !customTheme.trim()) {
       toast({
         title: "Missing information",
-        description: "Please select a reading level and theme.",
+        description: "Please select a word list and enter a story theme.",
         variant: "destructive"
       });
       return;
     }
     
     createStoryMutation.mutate({
-      readingLevel: selectedReadingLevel,
-      theme: selectedTheme,
+      readingLevel: selectedFryList,
+      theme: customTheme.trim(),
       numPages: numPages,
       customTitle: customTitle.trim() || undefined,
       mainCharacters: mainCharacters.trim() || undefined,
@@ -105,23 +111,38 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
     <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
-          {/* Reading Level Selection */}
+          {/* Fry Word List Selection */}
           <div>
-            <label className="block font-display font-semibold text-lg mb-3 text-neutral-800">Reading Level</label>
+            <div className="flex items-center mb-3">
+              <label className="block font-display font-semibold text-lg text-neutral-800">Fry Word List</label>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-6 w-6 ml-2">
+                      <Info className="h-4 w-4 text-neutral-500" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-sm">
+                    <p className="text-sm">Fry words are common words that children should recognize to become fluent readers. 
+                    Selecting a Fry word list will include those words in the generated story.</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {readingLevels.map((level) => (
                 <button
                   key={level.id}
                   type="button"
                   className={`flex flex-col items-center justify-center p-4 border-2 rounded-xl transition-colors ${
-                    selectedReadingLevel === level.id
+                    selectedFryList === level.id
                       ? "border-primary-600 bg-primary-50 hover:bg-primary-100"
                       : "border-neutral-200 hover:bg-neutral-50"
                   }`}
-                  onClick={() => setSelectedReadingLevel(level.id)}
+                  onClick={() => setSelectedFryList(level.id)}
                 >
                   <span className={`font-display font-bold text-2xl ${
-                    selectedReadingLevel === level.id ? "text-primary-600" : "text-neutral-700"
+                    selectedFryList === level.id ? "text-primary-600" : "text-neutral-700"
                   }`}>
                     {level.label}
                   </span>
@@ -131,39 +152,16 @@ export default function StoryGeneratorForm({ readingLevels, themes }: StoryGener
             </div>
           </div>
           
-          {/* Theme Selection */}
+          {/* Theme Input */}
           <div>
             <label className="block font-display font-semibold text-lg mb-3 text-neutral-800">Story Theme</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {themes.map((theme) => (
-                <div
-                  key={theme.id}
-                  className={`relative rounded-xl overflow-hidden group cursor-pointer h-32 border-2 transition-all ${
-                    selectedTheme === theme.id
-                      ? "border-primary-600"
-                      : "border-transparent hover:border-primary-600"
-                  }`}
-                  onClick={() => setSelectedTheme(theme.id)}
-                >
-                  <img
-                    src={theme.imageUrl}
-                    alt={`${theme.name} theme`}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent"></div>
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <span className="font-display font-semibold text-white">{theme.name}</span>
-                  </div>
-                  <div className={`absolute top-2 right-2 bg-primary-600 rounded-full p-1 ${
-                    selectedTheme === theme.id ? "opacity-100" : "opacity-0 group-hover:opacity-70"
-                  }`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-white text-xs">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <Input 
+              value={customTheme}
+              onChange={(e) => setCustomTheme(e.target.value)}
+              placeholder="Enter a story theme, like 'Space Pirates' or 'Underwater Adventure'"
+              className="w-full"
+            />
+            <p className="text-xs text-neutral-500 mt-1">Be creative! Your theme sets the context for the entire story.</p>
           </div>
           
           {/* Book Length */}
