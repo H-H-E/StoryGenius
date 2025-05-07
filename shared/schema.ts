@@ -55,6 +55,7 @@ export const bookPages = pgTable("book_pages", {
   imageUrl: text("image_url"),
   fryWords: json("fry_words").$type<string[]>().default([]),
   phonemes: json("phonemes").$type<string[]>().default([]),
+  words: json("words").$type<{text: string, phonemes: string[]}[]>().default([]),
 });
 
 export const bookPagesRelations = relations(bookPages, ({ one }) => ({

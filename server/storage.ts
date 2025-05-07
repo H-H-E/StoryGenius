@@ -102,7 +102,8 @@ export const storage = {
       imagePrompt: pageData.imagePrompt,
       imageUrl: pageData.imageUrl,
       fryWords: pageData.fryWords,
-      phonemes: pageData.phonemes
+      phonemes: pageData.phonemes,
+      words: pageData.words || []
     }).returning();
 
     return newPage;

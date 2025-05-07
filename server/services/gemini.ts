@@ -36,7 +36,7 @@ interface ReadingAssessmentSchema {
  * @param data The input data for Gemini
  * @param type The type of generation: "storybook" or "assessment"
  */
-export async function callGemini(data: any, type: string = "storybook"): Promise<StoryBookSchema | ReadingAssessmentSchema> {
+export async function callGemini(data: any, type: string = "storybook"): Promise<any> {
   if (!process.env.GEMINI_API_KEY) {
     throw new Error("GEMINI_API_KEY environment variable is not set");
   }

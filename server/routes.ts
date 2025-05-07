@@ -86,30 +86,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Generate images for each page using Replicate API
       const pages = await Promise.all(
-        bookContent.pages.map(async (page) => {
+        bookContent.pages.map(async (page: any) => {
           // Generate image
           const imageResponse = await generateImage({
             prompt: page.imagePrompt
           });
 
           // Process page data to extract text, fryWords, and phonemes
-          const text = page.words?.map(word => word.text).join(' ') || '';
+          const text = page.words?.map((word: any) => word.text).join(' ') || '';
           
           // Get unique phonemes from all words
           const phonemes = Array.from(
             new Set(
-              page.words?.flatMap(word => word.phonemes) || []
+              page.words?.flatMap((word: any) => word.phonemes) || []
             )
           );
           
           // Identify Fry words (simplified approach - could be enhanced)
           // We'll consider words with 4 or fewer letters as potential Fry words
           const fryWords = page.words
-            ?.filter(word => {
+            ?.filter((word: any) => {
               const cleanWord = word.text.replace(/[.,!?;:"']/g, '');
               return cleanWord.length <= 4;
             })
-            .map(word => word.text.replace(/[.,!?;:"']/g, '')) || [];
+            .map((word: any) => word.text.replace(/[.,!?;:"']/g, '')) || [];
 
           // Save page with image URL and calculated fields
           return storage.createBookPage({
@@ -130,9 +130,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...book,
         pages
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creating book:", error);
-      res.status(500).json({ message: "Failed to create book", error: error.message });
+      res.status(500).json({ message: "Failed to create book", error: error.message || String(error) });
     }
   });
 
@@ -165,9 +165,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await storage.updateUserProgress(1, analysis);
 
       res.json(analysis);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error analyzing reading:", error);
-      res.status(500).json({ message: "Failed to analyze reading", error: error.message });
+      res.status(500).json({ message: "Failed to analyze reading", error: error.message || String(error) });
     }
   });
 
@@ -187,9 +187,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       res.json({ imageUrl: imageResponse.imageUrl });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating image:", error);
-      res.status(500).json({ message: "Failed to generate image", error: error.message });
+      res.status(500).json({ message: "Failed to generate image", error: error.message || String(error) });
     }
   });
 
@@ -199,9 +199,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = 1; // Default user for now
       const progress = await storage.getUserProgress(userId);
       res.json(progress);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching user progress:", error);
-      res.status(500).json({ message: "Failed to fetch user progress" });
+      res.status(500).json({ message: "Failed to fetch user progress", error: error.message || String(error) });
     }
   });
 
