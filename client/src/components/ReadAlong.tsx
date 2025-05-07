@@ -18,7 +18,12 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   const { toast } = useToast();
   const [currentText, setCurrentText] = useState("");
   const audioVisRef = useRef<HTMLDivElement>(null);
-  const words = page.text.split(/\s+/).filter(word => word.length > 0);
+  
+  // Extract words either from the words array or fall back to text
+  const words = page.words?.length ? 
+    page.words.map(word => word.text) : 
+    (page.text?.split(/\s+/).filter(word => word.length > 0) || []);
+  
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   
   const { 
@@ -71,14 +76,19 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
   useEffect(() => {
     if (transcript) {
       setCurrentText(transcript);
-      const words = page.text.toLowerCase().split(/\s+/);
+      
+      // Extract words from either the words array or fallback to text
+      const pageWords = page.words?.length ? 
+        page.words.map(word => word.text.toLowerCase()) : 
+        (page.text?.toLowerCase().split(/\s+/) || []);
+      
       const transcriptWords = transcript.toLowerCase().split(/\s+/);
       
       // Find the last recognized word
       if (transcriptWords.length > 0) {
         const lastWord = transcriptWords[transcriptWords.length - 1];
         // Find this word in the original text
-        const index = words.findIndex(w => 
+        const index = pageWords.findIndex(w => 
           w.replace(/[.,!?;:"']/g, '').toLowerCase() === lastWord.replace(/[.,!?;:"']/g, '')
         );
         
@@ -87,7 +97,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
         }
       }
     }
-  }, [transcript, page.text]);
+  }, [transcript, page.words, page.text]);
 
   const assessReadingMutation = useMutation({
     mutationFn: async (data: ReadingEvent) => {
@@ -122,7 +132,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
           await assessReadingMutation.mutateAsync({
             bookId,
             pageNumber: page.pageNumber,
-            expected: page.text,
+            expected: page.text || words.join(' '),
             actual: currentText
           });
         }
@@ -160,7 +170,7 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
         <div className="bg-neutral-50 border border-neutral-200 rounded-lg p-4 mb-4 hidden md:block">
           <div className="text-sm text-neutral-500 mb-1">Focus Words:</div>
           <div className="flex flex-wrap gap-2">
-            {page.fryWords.map((word) => (
+            {(page.fryWords || []).map((word) => (
               <span 
                 key={word} 
                 className="px-3 py-1 bg-primary-100 text-primary-700 rounded-full text-sm font-medium"
