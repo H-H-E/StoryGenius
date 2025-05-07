@@ -48,6 +48,8 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     confidence,
     isListening,
     isSpeechRecognitionSupported,
+    permissionStatus,
+    requestPermission,
     error: recognitionError,
     resetTranscript 
   } = useSpeechRecognition();

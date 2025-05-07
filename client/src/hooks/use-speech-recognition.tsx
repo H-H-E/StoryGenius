@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
+// Add a new state for permission status
+type PermissionStatus = 'prompt' | 'granted' | 'denied' | 'checking' | 'unsupported';
+
 interface SpeechRecognitionHook {
   transcript: string;
   interimTranscript: string;
@@ -7,7 +10,9 @@ interface SpeechRecognitionHook {
   confidence: number;
   isListening: boolean;
   isSpeechRecognitionSupported: boolean;
+  permissionStatus: PermissionStatus; // Added permission status
   error: string | null;
+  requestPermission: () => Promise<void>; // Add explicit request function
   startListening: () => void;
   stopListening: () => void;
   resetTranscript: () => void;
@@ -39,6 +44,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const [lastWordDetected, setLastWordDetected] = useState('');
   const [confidence, setConfidence] = useState(0);
   const [isListening, setIsListening] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('checking'); // Initialize permission status
   const [error, setError] = useState<string | null>(null);
   
   // Keep the recognition instance in a ref to persist across renders
@@ -47,6 +53,10 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   // Restart count to prevent infinite restart loops
   const restartCountRef = useRef(0);
   const maxRestartAttempts = 3;
+  
+  // Forward declarations to solve dependency cycle
+  const checkPermissionRef = useRef<() => Promise<string>>();
+  const requestPermissionRef = useRef<() => Promise<void>>();
   
   /**
    * Detect speech recognition support across different browsers
@@ -134,13 +144,37 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
    * Start the speech recognition process
    * Configures and initializes the recognition instance
    */
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     // First check if speech recognition is supported
     const SpeechRecognition = getSpeechRecognition();
     if (!SpeechRecognition) {
       console.error("Speech recognition not supported in this browser");
       setError("Speech recognition not supported in this browser");
       return;
+    }
+    
+    // Check permission status before starting
+    const currentPermission = await checkPermission();
+    if (currentPermission === 'denied') {
+      console.error("Microphone permission denied");
+      setError("Microphone access denied. Please allow access in your browser settings.");
+      return;
+    }
+    
+    // If permission is in prompt state, try to request it explicitly
+    if (currentPermission === 'prompt') {
+      try {
+        await requestPermission();
+        // Re-check permission after request
+        const updatedPermission = await checkPermission();
+        if (updatedPermission !== 'granted') {
+          console.error("Microphone permission still not granted after request");
+          return;
+        }
+      } catch (err) {
+        console.error("Error requesting microphone permission:", err);
+        return;
+      }
     }
     
     // Reset state
@@ -354,7 +388,7 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
       setError("Failed to initialize speech recognition");
       setIsListening(false);
     }
-  }, [getSpeechRecognition, cleanupRecognition, extractLastWord, isListening]);
+  }, [getSpeechRecognition, cleanupRecognition, extractLastWord, checkPermission, requestPermission, isListening]);
   
   /**
    * Stop the speech recognition process
@@ -389,6 +423,69 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     setError(null);
   }, []);
   
+  // Function to check microphone permission status
+  const checkPermission = useCallback(async () => {
+    if (!isSpeechRecognitionSupported()) {
+      setPermissionStatus('unsupported');
+      return 'unsupported';
+    }
+    
+    if (!navigator.permissions) {
+      console.warn('Navigator.permissions API not supported, relying on implicit request.');
+      // Fallback: Assume prompt, let start() handle it
+      setPermissionStatus('prompt');
+      return 'prompt';
+    }
+    
+    try {
+      const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      console.log('Current microphone permission status:', status.state);
+      setPermissionStatus(status.state as PermissionStatus);
+      
+      // Add listener for permission changes
+      status.onchange = () => {
+        console.log('Microphone permission changed to:', status.state);
+        setPermissionStatus(status.state as PermissionStatus);
+      };
+      
+      return status.state;
+    } catch (error) {
+      console.error('Error querying microphone permission:', error);
+      // If query fails, default to prompt state
+      setPermissionStatus('prompt');
+      return 'prompt';
+    }
+  }, [isSpeechRecognitionSupported]);
+  
+  // Explicitly request permission
+  const requestPermission = useCallback(async () => {
+    try {
+      if (permissionStatus !== 'granted') {
+        console.log('Explicitly requesting microphone permission...');
+        // Attempt to trigger the browser's permission prompt by requesting media
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        
+        // If we get here, permission was granted
+        // Store the stream for later use
+        if (window) {
+          window.microphoneStream = stream;
+        }
+        
+        // Re-check permission status after attempt
+        await checkPermission();
+      }
+    } catch (err) {
+      console.error('Error requesting microphone permission:', err);
+      setPermissionStatus('denied');
+      setError('Microphone permission denied. Please allow access in your browser settings.');
+    }
+  }, [permissionStatus, checkPermission]);
+  
+  // Check permission on hook mount
+  useEffect(() => {
+    checkPermission();
+  }, [checkPermission]);
+  
   // Clean up on unmount
   useEffect(() => {
     return () => {
@@ -404,7 +501,9 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     confidence,
     isListening,
     isSpeechRecognitionSupported: isSpeechRecognitionSupported(),
+    permissionStatus,
     error,
+    requestPermission,
     startListening,
     stopListening,
     resetTranscript
