@@ -62,30 +62,79 @@
   }
 
   /* Animation for word highlighting */
-  @keyframes highlight {
-    0% { background-color: rgba(99, 102, 241, 0); }
-    50% { background-color: rgba(99, 102, 241, 0.2); }
-    100% { background-color: rgba(99, 102, 241, 0); }
+  @keyframes highlight-pulse {
+    0% { 
+      background-color: rgba(79, 70, 229, 0.1);
+      transform: scale(1);
+      box-shadow: 0 0 0 rgba(79, 70, 229, 0);
+    }
+    50% { 
+      background-color: rgba(79, 70, 229, 0.2);
+      transform: scale(1.1);
+      box-shadow: 0 0 10px rgba(79, 70, 229, 0.3);
+    }
+    100% { 
+      background-color: rgba(79, 70, 229, 0.1);
+      transform: scale(1);
+      box-shadow: 0 0 0 rgba(79, 70, 229, 0);
+    }
   }
   
   .word-highlight {
-    animation: highlight 1.5s ease-in-out;
-    border-radius: 4px;
-    padding: 0 2px;
+    animation: highlight-pulse 1.5s ease-in-out infinite;
+    border-radius: 6px;
+    padding: 2px 4px;
+    display: inline-block;
+    color: #4338ca;
+    font-weight: 600;
+  }
+  
+  /* Enhanced styling for the word component */
+  .word {
+    transition: all 0.2s ease-out;
+    position: relative;
+  }
+  
+  .word:hover {
+    color: #4338ca;
+    cursor: pointer;
   }
   
   /* Audio visualization */
   .audio-wave {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 3px;
     height: 40px;
+    padding: 0 5px;
+    border-radius: 8px;
   }
   
   .audio-bar {
-    width: 4px;
-    margin: 0 2px;
-    background-color: #4F46E5;
-    border-radius: 2px;
-    transition: height 0.1s ease;
+    width: 3px;
+    background: linear-gradient(to top, #4F46E5, #818CF8);
+    border-radius: 3px;
+    transition: height 0.15s ease;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
   }
 }

@@ -287,7 +287,14 @@ export const storage = {
 
     let avgAccuracy = 0;
     if (recentReadingEvents.length > 0) {
-      const validEvents = recentReadingEvents.filter(event => event.analysis && event.analysis.scores);
+      // TypeScript: Filter out events with no analysis or scores
+      const validEvents = recentReadingEvents.filter(
+        (event): event is typeof event & { analysis: NonNullable<typeof event.analysis> } => 
+          event.analysis !== null && 
+          event.analysis !== undefined && 
+          !!event.analysis.scores
+      );
+      
       if (validEvents.length > 0) {
         avgAccuracy = validEvents.reduce((sum, event) => {
           return sum + event.analysis.scores.accuracyPct;
