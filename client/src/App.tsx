@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/home";
 import BookReader from "@/pages/book/[id]";
+import Books from "@/pages/books";
 import Dashboard from "@/pages/dashboard";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -16,6 +17,7 @@ function Router() {
       <main className="flex-grow">
         <Switch>
           <Route path="/" component={Home} />
+          <Route path="/books" component={Books} />
           <Route path="/book/:id" component={BookReader} />
           <Route path="/dashboard" component={Dashboard} />
           <Route component={NotFound} />

@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Book } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
@@ -14,7 +13,6 @@ import {
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -32,6 +30,43 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
+// Define interfaces for our data types
+interface BookPage {
+  id: number;
+  bookId: number;
+  pageNumber: number;
+  text: string;
+  imagePrompt: string;
+  imageUrl: string | null;
+  fryWords: string[];
+  phonemes: string[];
+  words: any[];
+  createdAt: string;
+}
+
+interface Book {
+  id: number;
+  title: string;
+  readingLevel: string;
+  theme: string;
+  userId: number;
+  createdAt: string;
+  completionCount?: number;
+  pages: BookPage[];
+}
+
+interface ReadingLevel {
+  id: string;
+  label: string;
+  description: string;
+}
+
+interface Theme {
+  id: string;
+  name: string;
+  imageUrl: string;
+}
+
 export default function Books() {
   const [currentPage, setCurrentPage] = useState(1);
   const [levelFilter, setLevelFilter] = useState<string>("all");
@@ -45,12 +80,12 @@ export default function Books() {
   });
 
   // Get reading levels for filtering
-  const { data: readingLevels } = useQuery({
+  const { data: readingLevels } = useQuery<ReadingLevel[]>({
     queryKey: ['/api/reading-levels'],
   });
 
   // Get themes for filtering
-  const { data: themes } = useQuery({
+  const { data: themes } = useQuery<Theme[]>({
     queryKey: ['/api/themes'],
   });
 
@@ -92,7 +127,7 @@ export default function Books() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="all">All Levels</SelectItem>
-                  {readingLevels?.map((level: any) => (
+                  {readingLevels && readingLevels.map((level) => (
                     <SelectItem key={level.id} value={level.id}>
                       {level.label}
                     </SelectItem>
@@ -111,7 +146,7 @@ export default function Books() {
               <SelectContent>
                 <SelectGroup>
                   <SelectItem value="all">All Themes</SelectItem>
-                  {themes?.map((theme: any) => (
+                  {themes && themes.map((theme) => (
                     <SelectItem key={theme.id} value={theme.id}>
                       {theme.name}
                     </SelectItem>
@@ -205,11 +240,11 @@ export default function Books() {
 
 function BookCard({ book }: { book: Book }) {
   // Find the first page that has an image URL
-  const coverImage = book.pages.find(page => page.imageUrl)?.imageUrl;
+  const coverImage = book.pages && book.pages.find(page => page.imageUrl)?.imageUrl;
   
   // Get reading progress
   const pagesRead = book.completionCount || 0;
-  const totalPages = book.pages.length || 1;
+  const totalPages = book.pages ? book.pages.length : 1;
   const progressPercent = Math.min(100, Math.round((pagesRead / totalPages) * 100));
   
   return (
@@ -243,7 +278,7 @@ function BookCard({ book }: { book: Book }) {
       </CardContent>
       <CardFooter className="flex justify-between">
         <Button variant="outline" asChild>
-          <Link href={`/book/${book.id}/1`}>
+          <Link href={`/book/${book.id}`}>
             {pagesRead > 0 ? "Continue" : "Start Reading"}
           </Link>
         </Button>
