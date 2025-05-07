@@ -5,7 +5,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Mic, Square, Volume2, VolumeX } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
+import { useSpeechRecognition } from "@/hooks/use-speech-recognition-fixed";
 import { highlightWord } from "@/lib/word-highlighting";
 import MicrophonePermission from "@/components/MicrophonePermission";
 
@@ -327,8 +327,25 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
     resetTranscript();
     setCurrentWordIndex(-1);
     
-    // Show the permission UI - safer approach than trying to get permissions directly
-    setShowPermissionRequest(true);
+    if (permissionStatus === 'granted') {
+      // Already have permission, so start listening directly
+      startListeningWithPermission();
+    } 
+    else if (permissionStatus === 'denied') {
+      // Show the denied state, user will need to click "Try Again"
+      // The UI component for denied state will be shown automatically
+      toast({
+        title: "Microphone Access Required",
+        description: "Please allow microphone access to use the reading feature.",
+        variant: "destructive"
+      });
+    }
+    else {
+      // Show the permission UI for 'prompt' or other states
+      setShowPermissionRequest(true);
+      // Also explicitly request permission through our hook
+      await requestPermission();
+    }
   };
   
   const stopReadingSession = async () => {
@@ -393,7 +410,8 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
       style={{ transform: isReading ? 'translateY(0)' : 'translateY(85%)', maxHeight: '250px' }}>
       <div className="max-w-4xl mx-auto">
         {/* Show microphone permission prompt when needed */}
-        {showPermissionRequest && (
+        {/* Show microphone permission prompt when permission is in prompt state */}
+        {(showPermissionRequest || permissionStatus === 'prompt') && (
           <div className="mb-4">
             <MicrophonePermission
               onPermissionGranted={() => {
@@ -405,6 +423,24 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading }: Rea
                 handlePermissionDenied();
               }}
             />
+          </div>
+        )}
+        
+        {/* Show message when permission is denied */}
+        {permissionStatus === 'denied' && !showPermissionRequest && (
+          <div className="mb-4 p-3 bg-red-50 text-red-700 rounded-lg">
+            <h3 className="font-medium">Microphone Access Denied</h3>
+            <p className="text-sm mb-2">Please allow microphone access in your browser settings to use the reading feature.</p>
+            <Button 
+              size="sm" 
+              variant="destructive"
+              onClick={() => {
+                // Try requesting permission again
+                requestPermission();
+              }}
+            >
+              Try Again
+            </Button>
           </div>
         )}
         
