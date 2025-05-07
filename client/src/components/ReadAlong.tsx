@@ -196,39 +196,60 @@ export default function ReadAlong({ bookId, page, isReading, setIsReading, onWor
       // If no lastWordDetected but we have interim transcript, use that
       else if (interimTranscript && interimTranscript.trim()) {
         const interimWords = interimTranscript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        console.log(`ReadAlong: Processing interim transcript with ${interimWords.length} words:`, interimWords);
+        
         if (interimWords.length > 0) {
           const lastInterimWord = interimWords[interimWords.length - 1];
           if (lastInterimWord && lastInterimWord.length > 0) {
-            console.log("Using interimTranscript for highlighting:", lastInterimWord);
+            console.log(`ReadAlong: Using interimTranscript for highlighting: "${lastInterimWord}"`);
             
             // Try the callback prop for direct component communication
             if (onWordDetected && typeof onWordDetected === 'function') {
+              console.log(`ReadAlong: Calling onWordDetected with interim word: ${lastInterimWord}`);
               onWordDetected(lastInterimWord);
             }
             // Fallback to the window global approach (legacy)
             else if (typeof highlightBookPageWord === 'function') {
+              console.log(`ReadAlong: Calling window.highlightBookPageWord with interim word: ${lastInterimWord}`);
               highlightBookPageWord(lastInterimWord);
+            } else {
+              console.error("ReadAlong: No mechanism available to highlight interim words!");
             }
+          } else {
+            console.log("ReadAlong: Last interim word is empty or invalid");
           }
+        } else {
+          console.log("ReadAlong: No valid words found in interim transcript");
         }
       }
       // Fallback - use final transcript if no interim data available
       else if (transcript && transcript.trim()) {
         const transcriptWords = transcript.toLowerCase().split(/\s+/).filter(w => w.length > 0);
+        console.log(`ReadAlong: Processing final transcript with ${transcriptWords.length} words:`, 
+          transcriptWords.slice(-5).join(", ") + (transcriptWords.length > 5 ? "..." : ""));
+        
         if (transcriptWords.length > 0) {
           const lastWord = transcriptWords[transcriptWords.length - 1];
           if (lastWord && lastWord.length > 0) {
-            console.log("Using transcript for highlighting:", lastWord);
+            console.log(`ReadAlong: Using final transcript for highlighting: "${lastWord}"`);
             
             // Try the callback prop for direct component communication
             if (onWordDetected && typeof onWordDetected === 'function') {
+              console.log(`ReadAlong: Calling onWordDetected with final word: ${lastWord}`);
               onWordDetected(lastWord);
             }
             // Fallback to the window global approach (legacy)
             else if (typeof highlightBookPageWord === 'function') {
+              console.log(`ReadAlong: Calling window.highlightBookPageWord with final word: ${lastWord}`);
               highlightBookPageWord(lastWord);
+            } else {
+              console.error("ReadAlong: No mechanism available to highlight final words!");
             }
+          } else {
+            console.log("ReadAlong: Last final word is empty or invalid");
           }
+        } else {
+          console.log("ReadAlong: No valid words found in final transcript");
         }
       }
     } catch (error) {

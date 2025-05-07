@@ -121,14 +121,31 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   
   /**
    * Extract the last word from a transcript
+   * With enhanced debugging for troubleshooting
    */
   const extractLastWord = useCallback((text: string): string => {
-    if (!text) return '';
-    
-    const cleanedText = text.trim();
-    const words = cleanedText.split(/\s+/);
-    
-    return words.length > 0 ? words[words.length - 1].toLowerCase() : '';
+    try {
+      if (!text) {
+        console.log("Speech recognition: extractLastWord received empty text");
+        return '';
+      }
+      
+      const cleanedText = text.trim();
+      console.log(`Speech recognition: extractLastWord processing: "${cleanedText}"`);
+      
+      const words = cleanedText.split(/\s+/);
+      if (words.length === 0) {
+        console.log("Speech recognition: No words found in text");
+        return '';
+      }
+      
+      const lastWord = words[words.length - 1].toLowerCase();
+      console.log(`Speech recognition: Found last word: "${lastWord}" from ${words.length} words`);
+      return lastWord;
+    } catch (error) {
+      console.error("Speech recognition: Error extracting last word:", error);
+      return '';
+    }
   }, []);
   
   /**
