@@ -63,7 +63,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new book
   app.post(`${apiPrefix}/books/new`, async (req, res) => {
     try {
-      const { readingLevel, theme, numPages } = req.body;
+      const { 
+        readingLevel, 
+        theme, 
+        numPages, 
+        customTitle,
+        mainCharacters,
+        plotElements,
+        artStyle
+      } = req.body;
 
       if (!readingLevel || !theme || !numPages) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -73,7 +81,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const bookContent = await callGemini({
         reading_level: readingLevel,
         theme: theme,
-        num_pages: numPages
+        num_pages: numPages,
+        custom_title: customTitle,
+        main_characters: mainCharacters,
+        plot_elements: plotElements,
+        art_style: artStyle
       });
 
       // Create book in database

@@ -253,13 +253,15 @@ export const storage = {
       const event = recentEvents[0];
       const analysis = event.analysis;
       
-      recentSession = {
-        bookTitle: event.book.title,
-        date: new Date(event.createdAt).toLocaleDateString(),
-        accuracyPct: analysis.scores.accuracyPct,
-        notes: "Great improvement with short vowel sounds!",
-        suggestion: "Practice words with 'ou' sounds like 'found' and 'around'."
-      };
+      if (analysis && analysis.scores) {
+        recentSession = {
+          bookTitle: event.book.title,
+          date: new Date(event.createdAt).toLocaleDateString(),
+          accuracyPct: analysis.scores.accuracyPct,
+          notes: "Great improvement with short vowel sounds!",
+          suggestion: "Practice words with 'ou' sounds like 'found' and 'around'."
+        };
+      }
     }
 
     // Calculate overall stats
@@ -285,9 +287,12 @@ export const storage = {
 
     let avgAccuracy = 0;
     if (recentReadingEvents.length > 0) {
-      avgAccuracy = recentReadingEvents.reduce((sum, event) => {
-        return sum + event.analysis.scores.accuracyPct;
-      }, 0) / recentReadingEvents.length;
+      const validEvents = recentReadingEvents.filter(event => event.analysis && event.analysis.scores);
+      if (validEvents.length > 0) {
+        avgAccuracy = validEvents.reduce((sum, event) => {
+          return sum + event.analysis.scores.accuracyPct;
+        }, 0) / validEvents.length;
+      }
     }
 
     return {

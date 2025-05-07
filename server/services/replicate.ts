@@ -44,7 +44,7 @@ export async function generateImage(options: ReplicateImageRequest): Promise<Rep
   const requestBody = {
     version: "black-forest-labs/flux-schnell",
     input: {
-      prompt,
+      prompt: enhancedPrompt,
       steps,
       num_outputs,
       width,
