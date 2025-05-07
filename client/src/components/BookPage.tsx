@@ -1,5 +1,5 @@
 import { BookPage as BookPageType } from "@/types";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useImperativeHandle, forwardRef } from "react";
 import { highlightWord } from "@/lib/word-highlighting";
 import { Mic, BookOpen } from "lucide-react";
 
@@ -10,7 +10,16 @@ interface BookPageProps {
   onWordHighlight?: (word: string) => void; // Add a callback prop for word highlighting
 }
 
-export default function BookPage({ page, isReading, onStartReading, onWordHighlight }: BookPageProps) {
+export interface BookPageHandle {
+  highlightWord: (word: string) => void;
+}
+
+const BookPage = forwardRef<BookPageHandle, BookPageProps>(({ 
+  page, 
+  isReading, 
+  onStartReading, 
+  onWordHighlight 
+}: BookPageProps, ref) => {
   const [words, setWords] = useState<string[]>([]);
   const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
   const textRef = useRef<HTMLDivElement>(null);
@@ -91,10 +100,18 @@ export default function BookPage({ page, isReading, onStartReading, onWordHighli
   
   // Add a way for external components to access this function
   useEffect(() => {
-    // Expose the highlight function to the window for component communication
+    // Expose the highlight function to the window for component communication (legacy approach)
     (window as any).highlightBookPageWord = highlightRecognizedWord;
     console.log("BookPage: Exposing highlightBookPageWord function to window", !!highlightRecognizedWord);
   }, [highlightRecognizedWord, words, onWordHighlight]);
+  
+  // Expose methods via ref using useImperativeHandle (modern React pattern)
+  useImperativeHandle(ref, () => ({
+    highlightWord: (word: string) => {
+      console.log("BookPage: Highlighting word via ref:", word);
+      highlightRecognizedWord(word);
+    }
+  }), [highlightRecognizedWord, words]);
 
   return (
     <div className="w-full p-4 md:p-6 lg:p-8 mx-auto max-w-4xl">
@@ -287,4 +304,6 @@ export default function BookPage({ page, isReading, onStartReading, onWordHighli
       </div>
     </div>
   );
-}
+});
+
+export default BookPage;

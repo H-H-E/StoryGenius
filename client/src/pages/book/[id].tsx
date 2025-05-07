@@ -52,6 +52,17 @@ export default function BookReader() {
   // State for word highlighting communication between components
   const [highlightWord, setHighlightWord] = useState('');
   
+  // Reference to the BookPage component for direct method calling
+  const bookPageRef = useRef<any>(null);
+  
+  // Effect to highlight words when the highlightWord state changes
+  useEffect(() => {
+    if (highlightWord && bookPageRef.current) {
+      console.log(`BookReader: Calling highlightWord via ref: ${highlightWord}`);
+      bookPageRef.current.highlightWord(highlightWord);
+    }
+  }, [highlightWord]);
+  
   // Start reading handler for the BookPage component
   const handleStartReading = () => {
     setIsReading(true);
@@ -149,6 +160,7 @@ export default function BookReader() {
         
         {/* Book content with neoskeuomorphic design */}
         <BookPage 
+          ref={bookPageRef}
           page={currentPage} 
           isReading={isReading}
           onStartReading={handleStartReading}
