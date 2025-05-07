@@ -59,16 +59,16 @@ export function registerAuthRoutes(app: Express) {
 
   // Login route
   app.post(`${apiPrefix}/auth/login`, (req: Request, res: Response, next) => {
-    passport.authenticate('local', (err, user, info) => {
+    passport.authenticate('local', (err: any, user: any, info: any) => {
       if (err) {
         return next(err);
       }
       if (!user) {
-        return res.status(401).json({ message: info.message || 'Authentication failed' });
+        return res.status(401).json({ message: info?.message || 'Authentication failed' });
       }
-      req.login(user, (err) => {
-        if (err) {
-          return next(err);
+      req.login(user, (loginErr: any) => {
+        if (loginErr) {
+          return next(loginErr);
         }
         return res.json({ 
           message: 'Login successful',
